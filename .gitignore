@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Virtualenv
+.venv/
+
+# VSCode
+.vscode/
+
+# Env files
+.env
+*.env
+
+# Poetry
+poetry.lock
+
+# OS stuff
+.DS_Store
+Thumbs.db
