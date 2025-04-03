@@ -1,10 +1,10 @@
 # my_workflow_engine/resolvers.py
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Callable, Union
-from supabase import create_client, Client
+from typing import Any, Dict, List, Callable, Union, Optional
+from supabase import create_async_client, AsyncClient
 import os
 from .types import File, FileExecutionData, NodeOutputData, calc_file_size
-from .functionRegistry import registry
+from .registry import registry
 import logging
 import io
 
@@ -12,8 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 class ResolverError(Exception):
-    """Custom exception for resolver errors."""
-
     pass
 
 
@@ -58,7 +56,9 @@ class BaseResolver(ABC):
 
 
 class SupabaseResolver(BaseResolver):
-    def __init__(self):
+    def __init__(
+        self, user_id: str, workflow_id: str, storage_bucket: str = "documents_storage"
+    ):
         supabase_url = os.getenv("SUPABASE_URL")
         supabase_key = os.getenv("SUPABASE_KEY")
 
@@ -67,16 +67,33 @@ class SupabaseResolver(BaseResolver):
                 "SUPABASE_URL and SUPABASE_KEY environment variables must be set"
             )
 
-        self.supabase: Client = create_client(supabase_url, supabase_key)
-        self.user_id = "1a72f66c-e892-46b5-ab9f-17c3017df5ed"  # hardcoded for now
-        self.storage_bucket = "documents_storage"  # configurable bucket name
+        if not user_id:
+            raise ValueError("user_id must be provided")
+
+        if not workflow_id:
+            raise ValueError("workflow_id must be provided")
+
+        self.supabase_url = supabase_url
+        self.supabase_key = supabase_key
+        self.supabase: Optional[AsyncClient] = None
+        self.user_id = user_id
+        self.workflow_id = workflow_id
+        self.storage_bucket = storage_bucket
+
+    async def initialize(self):
+        """Initialize the Supabase client asynchronously"""
+        if self.supabase is None:
+            self.supabase = await create_async_client(
+                self.supabase_url, self.supabase_key
+            )
+        return self
 
     async def get_node_files(
         self, node_id: str, mime_type: str
     ) -> List[FileExecutionData]:
         """Fetches file metadata and downloads content for files matching node_id and mime_type."""
         try:
-            response = (
+            response = await (
                 self.supabase.table("document_info")
                 .select("*, node_workspace_docs!inner(node_ref_id)")
                 .eq("node_workspace_docs.node_ref_id", node_id)
@@ -122,18 +139,7 @@ class SupabaseResolver(BaseResolver):
         """
         Gets function callable from registry based on str_id fetched from Supabase 'tools' table.
         """
-        response = (
-            self.supabase.table("tools")
-            .select("*")
-            .eq("id", reference_id)
-            .single()
-            .execute()
-        )
-
-        if not response.data:
-            raise ValueError(f"No function found for reference_id: {reference_id}")
-
-        function_name = response.data["str_id"]
+        function_name = reference_id
 
         function = registry.get_function(function_name)
         if not function:
@@ -146,7 +152,7 @@ class SupabaseResolver(BaseResolver):
         Gets the 'config' JSON blob from the 'node_workspaces' table for a specific node instance.
         """
         try:
-            response = (
+            response = await (
                 self.supabase.table("node_workspaces")
                 .select("config")
                 .eq("node_id_ref", node_id)
@@ -154,17 +160,17 @@ class SupabaseResolver(BaseResolver):
                 .execute()
             )
 
-            if response.data and response.data.get("config"):
+            if response and response.data and response.data.get("config"):
                 config = response.data["config"]
                 if isinstance(config, dict):
                     return config
                 else:
-                    logger.warning(
+                    logger.info(
                         f"Config for node {node_id} is not a valid JSON object: {config}"
                     )
                     return {}
             else:
-                logger.debug(
+                logger.info(
                     f"No configuration found for node {node_id}, returning empty config."
                 )
                 return {}
@@ -237,8 +243,9 @@ class SupabaseResolver(BaseResolver):
 
             # 2. Upload file to Storage Bucket (using exec_data.content)
             storage_path = f"{final_file_metadata.user}/{final_file_metadata.id}"
-            logger.debug(f"Uploading file to storage path: {storage_path}")
-            upload_content: Union[bytes, io.BytesIO]  # Prepare content
+            logger.info(f"Uploading file to storage path: {storage_path}")
+
+            upload_content: Union[bytes, io.BytesIO]
             if isinstance(file_content, bytes):
                 upload_content = file_content
             elif isinstance(file_content, io.IOBase):
@@ -251,18 +258,15 @@ class SupabaseResolver(BaseResolver):
             else:
                 raise TypeError(f"Unsupported type for content: {type(file_content)}")
 
-            upload_result = await self.supabase.storage.from_(
-                self.storage_bucket
-            ).upload(
-                path=storage_path,
-                file=upload_content,
-                file_options={"content_type": file_type, "upsert": "true"},
-            )
-
-            if upload_result.error:
-                raise Exception(upload_result.error.message)
-
-            logger.debug(f"Storage upload successful for path: {storage_path}")
+            try:
+                await self.supabase.storage.from_(self.storage_bucket).upload(
+                    path=storage_path,
+                    file=upload_content,
+                    file_options={"content_type": file_type, "upsert": "true"},
+                )
+                logger.info(f"Storage upload successful for path: {storage_path}")
+            except Exception as upload_error:
+                raise Exception(f"Storage upload failed: {str(upload_error)}")
 
             # 3. Link file to node workspace
             insert_data = [{"node_ref_id": node_id, "file_id": final_file_metadata.id}]
@@ -271,11 +275,6 @@ class SupabaseResolver(BaseResolver):
                 .insert(insert_data)
                 .execute()
             )
-
-            if workspace_result.error:
-                raise Exception(
-                    f"Failed to add files to node workspace for node {node_id}: {workspace_result.error.message}"
-                )
 
             return final_file_metadata
 
