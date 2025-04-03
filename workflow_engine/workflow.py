@@ -138,19 +138,16 @@ class WorkflowExecutor:
                 node_inputs=node_inputs,
             )
             logger.info(
-                f"Node {node_id} executed, produced {len(node_output)} result objects."
+                f"Node {node_name} executed, produced {len(node_output)} result objects."
             )
-
-            print(node_output)
 
             # 4. Save Node Results
             try:
-                # Pass the execution data directly
                 final_saved_metadata: List[File] = (
                     await self.resolver.save_node_results(node_id, node_output)
                 )
                 logger.info(
-                    f"Results saved for node {node_id}, {len(final_saved_metadata)} files persisted."
+                    f"Results saved for node {node_name}, {len(final_saved_metadata)} files persisted."
                 )
             except Exception as e:
                 logger.error(
@@ -207,7 +204,7 @@ class WorkflowExecutor:
                     f"Node {node_id} ({node_name}): Input '{name}' provided but not used by function '{function.__name__}'."
                 )
 
-        # call function
+        # Call function
         try:
             if inspect.iscoroutinefunction(function):
                 result = await function(**call_args)

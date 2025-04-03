@@ -1,4 +1,4 @@
-# my_workflow_engine/functionRegistry.py
+# my_workflow_engine/registry.py
 from typing import Dict, Callable, Any, TypeVar, Optional, Union
 from dataclasses import dataclass, field
 import inspect
