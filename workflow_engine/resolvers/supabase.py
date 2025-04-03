@@ -1,64 +1,24 @@
-# my_workflow_engine/resolvers.py
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Callable, Union, Optional
-from supabase import create_async_client, AsyncClient
+# workflow_engine/resolvers/supabase.py
 import os
-from .types import File, FileExecutionData, NodeOutputData, calc_file_size
-from .registry import registry
-import logging
 import io
+import logging
+from typing import Any, Dict, List, Callable, Optional, Union
+from supabase import create_async_client, AsyncClient
+from .base import BaseResolver, ResolverError
+from ..types import (
+    File,
+    FileExecutionData,
+    NodeOutputData,
+    calc_file_size,
+    Node,
+)
+from ..registry import registry
 
 logger = logging.getLogger(__name__)
 
 
-class ResolverError(Exception):
-    pass
-
-
-class BaseResolver(ABC):
-    @abstractmethod
-    async def get_node_files(
-        self, node_id: str, mime_type: str
-    ) -> List[FileExecutionData]:
-        """
-        Gets file metadata produced by source_node_id matching mime_type,
-        downloads the content, and returns combined execution data.
-        """
-        pass
-
-    @abstractmethod
-    async def get_function(self, reference_id: str) -> Callable:
-        """
-        Retrieves the callable function implementation using its reference ID.
-        """
-        pass
-
-    @abstractmethod
-    async def get_function_config(self, node_id: str) -> Dict[str, Any]:
-        """
-        Retrieves the specific configuration parameters for a given node instance
-        in the workflow.
-        Args:
-            node_id: The unique ID of the node instance in the workflow graph.
-        Returns:
-            Dict[str, Any]: Dictionary of configured parameter names and their values.
-        """
-        pass
-
-    @abstractmethod
-    async def save_node_results(
-        self, node_id: str, results: NodeOutputData
-    ) -> List[File]:
-        """
-        Save the results of a node execution
-        """
-        pass
-
-
 class SupabaseResolver(BaseResolver):
-    def __init__(
-        self, user_id: str, workflow_id: str, storage_bucket: str = "documents_storage"
-    ):
+    def __init__(self, user_id: str, storage_bucket: str = "documents_storage"):
         supabase_url = os.getenv("SUPABASE_URL")
         supabase_key = os.getenv("SUPABASE_KEY")
 
@@ -70,14 +30,10 @@ class SupabaseResolver(BaseResolver):
         if not user_id:
             raise ValueError("user_id must be provided")
 
-        if not workflow_id:
-            raise ValueError("workflow_id must be provided")
-
         self.supabase_url = supabase_url
         self.supabase_key = supabase_key
         self.supabase: Optional[AsyncClient] = None
         self.user_id = user_id
-        self.workflow_id = workflow_id
         self.storage_bucket = storage_bucket
 
     async def initialize(self):
@@ -89,14 +45,17 @@ class SupabaseResolver(BaseResolver):
         return self
 
     async def get_node_files(
-        self, node_id: str, mime_type: str
+        self, node_id: str, mime_type: str, run_id: str
     ) -> List[FileExecutionData]:
         """Fetches file metadata and downloads content for files matching node_id and mime_type."""
+        if not run_id:
+            raise ValueError("run_id must be provided to get node files")
         try:
             response = await (
                 self.supabase.table("document_info")
                 .select("*, node_workspace_docs!inner(node_ref_id)")
                 .eq("node_workspace_docs.node_ref_id", node_id)
+                .eq("node_workspace_docs.run_id", run_id)
                 .eq("file_type", mime_type)
                 .execute()
             )
@@ -147,11 +106,13 @@ class SupabaseResolver(BaseResolver):
 
         return function
 
-    async def get_function_config(self, node_id: str) -> Dict[str, Any]:
+    async def get_function_config(self, node_data: Node) -> Dict[str, Any]:
         """
         Gets the 'config' JSON blob from the 'node_workspaces' table for a specific node instance.
         """
         try:
+            node_id = node_data.id
+
             response = await (
                 self.supabase.table("node_workspaces")
                 .select("config")
@@ -180,27 +141,28 @@ class SupabaseResolver(BaseResolver):
                 f"Failed to fetch function config for node {node_id}: {str(e)}"
             )
 
-    # add VERSION number later
     async def save_node_results(
-        self, node_id: str, results: NodeOutputData
+        self, node_id: str, results: NodeOutputData, run_id: str
     ) -> List[File]:
 
         final_metadata_list: List[File] = []
         for exec_data in results:
             try:
                 # _save_single_file now returns the final File metadata object
-                final_metadata = await self._save_single_file(node_id, exec_data)
+                final_metadata = await self._save_single_file(
+                    node_id, exec_data, run_id
+                )
                 final_metadata_list.append(final_metadata)
             except Exception as e:
                 logger.error(
-                    f"Halting save process for node {node_id} due to error saving file."
+                    f"Halting save process for node {node_id} in run {run_id} due to error saving file."
                 )
                 raise
 
         return final_metadata_list
 
     async def _save_single_file(
-        self, node_id: str, exec_data: FileExecutionData
+        self, node_id: str, exec_data: FileExecutionData, run_id: str
     ) -> File:
         metadata = exec_data.metadata
         file_content = exec_data.content
@@ -269,12 +231,17 @@ class SupabaseResolver(BaseResolver):
                 raise Exception(f"Storage upload failed: {str(upload_error)}")
 
             # 3. Link file to node workspace
-            insert_data = [{"node_ref_id": node_id, "file_id": final_file_metadata.id}]
-            workspace_result = (
-                await self.supabase.table("node_workspace_docs")
-                .insert(insert_data)
-                .execute()
-            )
+            insert_data = [
+                {
+                    "node_ref_id": node_id,
+                    "file_id": final_file_metadata.id,
+                    "run_id": run_id,
+                }
+            ]
+
+            await self.supabase.table("node_workspace_docs").insert(
+                insert_data
+            ).execute()
 
             return final_file_metadata
 

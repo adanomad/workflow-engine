@@ -1,7 +1,8 @@
 # my_workflow_engine/types.py
-from pydantic import BaseModel, Field
-from typing import Dict, Any, List, Optional, Union, IO
 import os
+import uuid
+from pydantic import BaseModel, Field, field_validator
+from typing import Dict, Any, List, Optional, Union, IO
 from dataclasses import dataclass
 
 
@@ -29,14 +30,27 @@ class WorkflowGraph(BaseModel):
     nodes: List[Node]
     edges: List[Edge]
 
+    @field_validator("edges")
+    def check_edge_nodes_exist(cls, edges, info):
+        node_ids = {node.id for node in info.data.get("nodes", [])}
+        for edge in edges:
+            if edge.source_node_id not in node_ids:
+                raise ValueError(
+                    f"Edge source node '{edge.source_node_id}' not found in nodes"
+                )
+            if edge.target_node_id not in node_ids:
+                raise ValueError(
+                    f"Edge target node '{edge.target_node_id}' not found in nodes"
+                )
+        return edges
+
 
 Json = Dict[str, Any]
 
 
-# Fields match document_info exactly
 class File(BaseModel):
-    id: str  # Primary key from DB
-    user: str
+    id: str # = Field(default_factory=lambda: uuid.uuid4().hex)
+    user: Optional[str] = None
     title: Optional[str] = None
     file_type: Optional[str] = None  # Mime type
     file_size: Optional[int] = None
@@ -45,6 +59,7 @@ class File(BaseModel):
     delete_on: Optional[str] = None
     file_id: Optional[str] = None
     metadata: Optional[Json] = Field(default_factory=dict)
+    local_path: Optional[str] = None
 
 
 @dataclass

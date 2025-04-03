@@ -2,7 +2,8 @@
 import networkx as nx
 import logging
 import inspect
-from typing import Callable, Dict, Any, List
+import uuid
+from typing import Callable, Dict, Any, List, Optional
 from .types import (
     WorkflowGraph,
     WorkflowRunResults,
@@ -41,6 +42,7 @@ class WorkflowExecutor:
     def __init__(self, resolver: BaseResolver):
         self.resolver = resolver
         self.graph = nx.DiGraph()
+        self.current_run_id: Optional[str] = None
 
     def load_workflow(self, workflow_data: Dict[str, Any]):
         """Loads and validates the workflow graph."""
@@ -68,13 +70,21 @@ class WorkflowExecutor:
 
     async def execute(self):
         """
-        Executes the loaded workflow graph topologically.
+        Executes the loaded workflow graph topologically for a unique run.
         Returns:
-            WorkflowRunResults: A dictionary mapping node IDs to their output data.
+            Tuple[str, WorkflowRunResults]: A tuple containing the unique run ID
+                                            and a dictionary mapping node IDs
+                                            to their output file metadata.
         """
 
         if not self.graph:
             raise WorkflowExecutionError("Workflow not loaded before execution.")
+
+        self.current_run_id = uuid.uuid4().hex
+        workflow_results: WorkflowRunResults = {}
+        logger.info(
+            f"--- Starting Workflow Execution (Run ID: {self.current_run_id}) ---"
+        )
 
         try:
             execution_order = list(nx.topological_sort(self.graph))
@@ -86,9 +96,6 @@ class WorkflowExecutor:
             raise WorkflowExecutionError(
                 "Cannot determine execution order (graph issue)."
             )
-
-        workflow_results: WorkflowRunResults = {}
-        logger.info("--- Starting Workflow Execution ---")
 
         for node_id in execution_order:
             node_data = self.graph.nodes[node_id]["data"]
@@ -108,13 +115,14 @@ class WorkflowExecutor:
                     source_files = await self.resolver.get_node_files(
                         node_id=source_id,
                         mime_type=mime_type,
+                        run_id=self.current_run_id,
                     )
                     if param_name not in node_inputs:
                         node_inputs[edge.target_parameter] = []
                     node_inputs[param_name].extend(source_files)
                 except Exception as e:
                     logger.error(
-                        f"Failed to get input files for edge {edge.id} from node {source_id}",
+                        f"Failed to get input files for edge {edge.id} from node {source_id} [Run ID: {self.current_run_id}]",
                         exc_info=True,
                     )
                     raise WorkflowExecutionError(
@@ -125,9 +133,7 @@ class WorkflowExecutor:
 
             # 2. Get Function Implementation
             function_callable = await self.resolver.get_function(node_data.reference_id)
-            function_config_params = await self.resolver.get_function_config(
-                node_data.id
-            )
+            function_config_params = await self.resolver.get_function_config(node_data)
             node_inputs.update(function_config_params)
 
             # 3. Execute the Node Function
@@ -138,13 +144,15 @@ class WorkflowExecutor:
                 node_inputs=node_inputs,
             )
             logger.info(
-                f"Node {node_name} executed, produced {len(node_output)} result objects."
+                f"Node {node_name} executed, produced {len(node_output)} file objects."
             )
 
             # 4. Save Node Results
             try:
                 final_saved_metadata: List[File] = (
-                    await self.resolver.save_node_results(node_id, node_output)
+                    await self.resolver.save_node_results(
+                        node_id, node_output, self.current_run_id
+                    )
                 )
                 logger.info(
                     f"Results saved for node {node_name}, {len(final_saved_metadata)} files persisted."
@@ -163,7 +171,10 @@ class WorkflowExecutor:
             workflow_results[node_id] = final_saved_metadata
 
         logger.info("--- Workflow Execution Finished ---")
-        return workflow_results
+        # reset run state
+        run_id = self.current_run_id
+        self.current_run_id = None
+        return run_id, workflow_results
 
     async def _execute_node(
         self,
