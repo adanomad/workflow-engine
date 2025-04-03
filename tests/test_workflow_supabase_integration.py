@@ -1,7 +1,6 @@
-# tests/test_workflow_integration.py
+# tests/test_workflow_supabase_integration.py
 
 import pytest
-import os
 import uuid
 from dotenv import load_dotenv
 
@@ -9,7 +8,7 @@ load_dotenv()
 
 from workflow_engine.workflow import WorkflowExecutor, WorkflowExecutionError
 from workflow_engine.resolvers import SupabaseResolver
-from workflow_engine.types import File, WorkflowGraph, Node, Edge, Position
+from workflow_engine.types import Node, Edge, Position
 from workflow_engine.functions import builtins
 import logging
 
@@ -17,6 +16,9 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+# fixed workflow_id for testing
+WORKFLOW_ID = "1a41f60e-acb8-4687-b899-7c37eb892535"
 
 # --- Integration Test ---
 
@@ -80,7 +82,6 @@ async def test_run_real_workflow_on_supabase():
     # 2. Instantiate Real Resolver
     resolver = await SupabaseResolver(
         user_id="1a72f66c-e892-46b5-ab9f-17c3017df5ed",
-        workflow_id="1a41f60e-acb8-4687-b899-7c37eb892535",
         storage_bucket="documents_storage",
     ).initialize()
     print("SupabaseResolver instantiated successfully.")
@@ -96,17 +97,17 @@ async def test_run_real_workflow_on_supabase():
     #         {
     #             "node_id_ref": NODE_GENERATE_ID,
     #             "config": {},
-    #             "workflow_id": resolver.workflow_id,
+    #             "workflow_id": WORKFLOW_ID,
     #         },
     #         {
     #             "node_id_ref": NODE_PROCESS_ID,
     #             "config": {},
-    #             "workflow_id": resolver.workflow_id,
+    #             "workflow_id": WORKFLOW_ID,
     #         },
     #         {
     #             "node_id_ref": NODE_ANALYZE_ID,
     #             "config": node_analyze_config,
-    #             "workflow_id": resolver.workflow_id,
+    #             "workflow_id": WORKFLOW_ID,
     #         },
     #     ]
 
@@ -132,11 +133,12 @@ async def test_run_real_workflow_on_supabase():
         print("Loading workflow...")
         executor.load_workflow(workflow_def)
         print("Executing workflow...")
-        final_results = await executor.execute()
+        run_id, final_results = await executor.execute()
         print("Workflow execution finished.")
         print("--- Final Results (Persisted File Metadata) ---")
         print(final_results)
         assert final_results is not None
+        assert isinstance(run_id, str) and len(run_id) > 0
         assert NODE_GENERATE_ID in final_results
         assert NODE_PROCESS_ID in final_results
         assert NODE_ANALYZE_ID in final_results
