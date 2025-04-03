@@ -6,16 +6,10 @@ from typing import Dict, Any, List, Optional, Union, IO
 from dataclasses import dataclass
 
 
-class Position(BaseModel):
-    x: int
-    y: int
-
-
 class Node(BaseModel):
     id: str
     name: str
     reference_id: str  # str_id of tool in registry/db
-    position: Position
 
 
 class Edge(BaseModel):
@@ -49,7 +43,7 @@ Json = Dict[str, Any]
 
 
 class File(BaseModel):
-    id: str # = Field(default_factory=lambda: uuid.uuid4().hex)
+    id: str  # = Field(default_factory=lambda: uuid.uuid4().hex)
     user: Optional[str] = None
     title: Optional[str] = None
     file_type: Optional[str] = None  # Mime type

@@ -8,7 +8,7 @@ load_dotenv()
 
 from workflow_engine.workflow import WorkflowExecutor, WorkflowExecutionError
 from workflow_engine.resolvers import SupabaseResolver
-from workflow_engine.types import Node, Edge, Position
+from workflow_engine.types import Node, Edge
 from workflow_engine.functions import builtins
 import logging
 
@@ -46,19 +46,16 @@ async def test_run_real_workflow_on_supabase():
                 id=NODE_GENERATE_ID,
                 name="Generate Text",
                 reference_id="generate_text_file",
-                position=Position(x=10, y=10),
             ).model_dump(),
             Node(
                 id=NODE_ANALYZE_ID,
                 name="Analyze JSON",
                 reference_id="analyze_json_data",
-                position=Position(x=400, y=10),
             ).model_dump(),
             Node(
                 id=NODE_PROCESS_ID,
                 name="Text to JSON",
                 reference_id="process_text_to_json",
-                position=Position(x=200, y=10),
             ).model_dump(),
         ],
         "edges": [

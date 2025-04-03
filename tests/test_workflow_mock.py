@@ -11,7 +11,6 @@ from workflow_engine.types import (
     WorkflowGraph,
     Node,
     Edge,
-    Position,
 )
 from typing import List
 from workflow_engine.registry import registry
@@ -132,13 +131,11 @@ async def test_linear_workflow_text_to_json(workflow_executor, mock_resolver):
                 id=node1_id,
                 name="Generate Text",
                 reference_id="generate_text_file",
-                position=Position(x=10, y=10),
             ).model_dump(),
             Node(
                 id=node2_id,
                 name="Process JSON",
                 reference_id="process_text_to_json",
-                position=Position(x=200, y=10),
             ).model_dump(),
         ],
         "edges": [
@@ -251,19 +248,16 @@ async def test_workflow_with_config(workflow_executor, mock_resolver):
             id=node1_id,
             name="Generate Multi-Line",
             reference_id="generate_text_file",
-            position=Position(x=10, y=10),
         ).model_dump(),
         Node(
             id=node2_id,
             name="Analyze Data",
             reference_id="analyze_json_data",
-            position=Position(x=200, y=10),
         ).model_dump(),
         Node(
             id="node_proc",
             name="Text to JSON",
             reference_id="process_text_to_json",
-            position=Position(x=100, y=100),
         ).model_dump(),
     ]
     edges = [
