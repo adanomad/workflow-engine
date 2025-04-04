@@ -1,22 +1,17 @@
-[project]
+[tool.poetry]
 name = "workflow-engine"
 version = "0.1.0"
-description = "A workflow graph execution package"
-authors = [
-    {name = "Anthony Tecsa",email = "anthonytecsa@gmail.com"}
-]
-readme = "README.md"
-requires-python = ">=3.13,<4.0"
-dependencies = [
-    "networkx (>=3.4.2,<4.0.0)",
-    "pydantic (>=2.11.1,<3.0.0)",
-    "supabase (>=2.15.0,<3.0.0)",
+description = "A simple engine to execute workflows defined as JSON graphs"
+authors = ["Anthony Tecsa <anthonytecsa@gmail.com>"]
+packages = [
+    { include = "workflow_engine" }
 ]
 
-
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+[tool.poetry.dependencies]
+python = ">=3.13,<4.0"
+networkx = ">=3.4.2,<4.0.0"
+pydantic = ">=2.11.1,<3.0.0"
+supabase = ">=2.15.0,<3.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
@@ -24,4 +19,6 @@ pytest-mock = "^3.14.0"
 python-dotenv = "^1.1.0"
 pytest-asyncio = "^0.26.0"
 
-
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

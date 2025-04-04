@@ -25,7 +25,7 @@ WORKFLOW_ID = "1a41f60e-acb8-4687-b899-7c37eb892535"
 
 # Mark this test as 'integration' to potentially skip it during unit testing
 # Run with: pytest -m integration
-# Run with logs: pytest -s -m integration tests/test_workflow_integration.py
+# Run with logs: pytest -s -m integration tests/test_workflow_supabase_integration.py
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_run_real_workflow_on_supabase():
@@ -63,14 +63,16 @@ async def test_run_real_workflow_on_supabase():
                 id=f"edge_{uuid.uuid4()}",
                 source=NODE_GENERATE_ID,
                 target=NODE_PROCESS_ID,
-                mime_type="text/plain",
+                sourceHandle="text/plain",
+                targetHandle="text/plain",
                 target_parameter="input_files",
             ).model_dump(by_alias=True),
             Edge(
                 id=f"edge_{uuid.uuid4()}",
                 source=NODE_PROCESS_ID,
                 target=NODE_ANALYZE_ID,
-                mime_type="application/json",
+                sourceHandle="application/json",
+                targetHandle="application/json",
                 target_parameter="json_inputs",
             ).model_dump(by_alias=True),
         ],

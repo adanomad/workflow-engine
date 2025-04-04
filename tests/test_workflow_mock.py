@@ -22,6 +22,7 @@ load_dotenv()
 # --- Unit Tests ---
 pytestmark = pytest.mark.unit
 
+
 @pytest.fixture
 def mock_supabase_client():
     """Provides a mock Supabase client."""
@@ -143,7 +144,8 @@ async def test_linear_workflow_text_to_json(workflow_executor, mock_resolver):
                 id="edge1",
                 source=node1_id,
                 target=node2_id,
-                mime_type="text/plain",
+                sourceHandle="text/plain",
+                targetHandle="text/plain",
                 target_parameter="input_files",
             ).model_dump(by_alias=True)
         ],
@@ -265,14 +267,16 @@ async def test_workflow_with_config(workflow_executor, mock_resolver):
             id="e1",
             source=node1_id,
             target="node_proc",
-            mime_type="text/plain",
+            sourceHandle="text/plain",
+            targetHandle="text/plain",
             target_parameter="input_files",
         ).model_dump(by_alias=True),
         Edge(
             id="e2",
             source="node_proc",
             target=node2_id,
-            mime_type="application/json",
+            sourceHandle="application/json",
+            targetHandle="application/json",
             target_parameter="json_inputs",
         ).model_dump(by_alias=True),
     ]

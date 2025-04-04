@@ -16,7 +16,8 @@ class Edge(BaseModel):
     id: str
     source_node_id: str = Field(..., alias="source")
     target_node_id: str = Field(..., alias="target")
-    mime_type: str  # Mime type expected by the target parameter
+    sourceHandle: str  # Mime type expected by the source parameter
+    targetHandle: str  # Mime type expected by the target parameter
     target_parameter: str  # Name of the parameter in the target node function
 
 

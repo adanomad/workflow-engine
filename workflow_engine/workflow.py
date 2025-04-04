@@ -108,13 +108,13 @@ class WorkflowExecutor:
             incoming_edges = self.graph.in_edges(node_id, data=True)
             for source_id, target_id, edge_data in incoming_edges:
                 edge = edge_data["data"]
-                mime_type = edge.mime_type
+                source_mime_type = edge.sourceHandle
                 param_name = edge.target_parameter
 
                 try:
                     source_files = await self.resolver.get_node_files(
                         node_id=source_id,
-                        mime_type=mime_type,
+                        mime_type=source_mime_type,
                         run_id=self.current_run_id,
                     )
                     if param_name not in node_inputs:
