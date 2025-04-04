@@ -2,9 +2,11 @@
 name = "workflow-engine"
 version = "0.1.0"
 description = "A simple engine to execute workflows defined as JSON graphs"
+readme = "README.md"
 authors = ["Anthony Tecsa <anthonytecsa@gmail.com>"]
+license = "MIT"
 packages = [
-    { include = "workflow_engine" }
+    { include = "src" }
 ]
 
 [tool.poetry.dependencies]
