@@ -6,8 +6,9 @@ readme = "README.md"
 authors = ["Anthony Tecsa <anthonytecsa@gmail.com>"]
 license = "MIT"
 packages = [
-    { include = "src" }
+    { include = "workflow_engine", from = "src" }
 ]
+include = ["py.typed"]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
@@ -24,3 +25,4 @@ pytest-asyncio = "^0.26.0"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
