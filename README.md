@@ -44,4 +44,9 @@ Workflow Engine is a modular workflow orchestration system designed for running 
 
 ...
 
+## TODO
+
+Allow nodes to be run for multiple iterations
+Support parallel workflows
+Finish in_memory implementation
 
