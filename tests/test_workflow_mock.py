@@ -3,9 +3,9 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, call, ANY
 import uuid
-from src.workflow_engine_atecsa.workflow import WorkflowExecutor
-from src.workflow_engine_atecsa.resolvers import BaseResolver
-from src.workflow_engine_atecsa.types import (
+from src.workflow_engine.workflow import WorkflowExecutor
+from src.workflow_engine.resolvers import BaseResolver
+from src.workflow_engine.types import (
     File,
     FileExecutionData,
     WorkflowGraph,
@@ -13,8 +13,8 @@ from src.workflow_engine_atecsa.types import (
     Edge,
 )
 from typing import List
-from src.workflow_engine_atecsa.registry import registry
-from src.workflow_engine_atecsa.functions import builtins
+from src.workflow_engine.registry import registry
+from src.workflow_engine.functions import builtins
 from dotenv import load_dotenv
 
 load_dotenv()

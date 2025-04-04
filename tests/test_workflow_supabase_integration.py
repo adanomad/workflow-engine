@@ -6,10 +6,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.workflow_engine_atecsa.workflow import WorkflowExecutor, WorkflowExecutionError
-from src.workflow_engine_atecsa.resolvers import SupabaseResolver
-from src.workflow_engine_atecsa.types import Node, Edge
-from src.workflow_engine_atecsa.functions import builtins
+from src.workflow_engine.workflow import WorkflowExecutor, WorkflowExecutionError
+from src.workflow_engine.resolvers import SupabaseResolver
+from src.workflow_engine.types import Node, Edge
+from src.workflow_engine.functions import builtins
 import logging
 
 logging.basicConfig(
