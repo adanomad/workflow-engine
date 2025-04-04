@@ -1,6 +1,6 @@
-# My Workflow Engine
+# Workflow Engine
 
-My Workflow Engine is a modular and extensible workflow orchestration system designed for running and chaining node-based tasks. It currently supports a file-based data model for persisting node outputs and passing data between nodes based on MIME types. The engine is built to be extended for more flexible data handling—including ephemeral, JSON, and in-memory data—in future releases.
+Workflow Engine is a modular workflow orchestration system designed for running and chaining node-based tasks. It currently supports a file-based data model for persisting node outputs and passing data between nodes based on MIME types.
 
 ## Features
 
@@ -23,15 +23,7 @@ My Workflow Engine is a modular and extensible workflow orchestration system des
   Planned improvements include support for:
   - A more flexible data model (e.g., ephemeral and in-memory data)
   - Iterative workflows and sub-workflows (allowing controlled cycles)
-  - Enhanced concurrency and dynamic input resolution
-
-## Package Structure
-workflow_engine/
-├── __init__.py
-├── workflow.py         # Core workflow execution logic
-├── resolvers.py        # Resolver interfaces and implementations (e.g., SupabaseResolver)
-├── types.py            # Data models and type definitions (Nodes, Edges, Files, etc.)
-└── registry.py         # (Optional) Function registry for node functions
+  - Enhanced concurrency, parallel support
 
 
 ### Key Modules
@@ -42,13 +34,6 @@ workflow_engine/
   - Executes nodes in topological order
   - Handles input gathering, function invocation, and saving of results
 
-- **`resolvers.py`**  
-  Defines the `BaseResolver` abstract class and the `SupabaseResolver` implementation. Responsibilities include:
-  - Fetching node output data based on MIME types
-  - Retrieving function implementations for nodes
-  - Fetching node-specific configuration parameters
-  - Saving node execution results to a document store
-
 - **`types.py`**  
   Contains the Pydantic and dataclass models for:
   - Defining the workflow structure (`Node`, `Edge`, `WorkflowGraph`)
@@ -57,12 +42,6 @@ workflow_engine/
 
 ## Installation
 
-Clone the repository and install the package in editable mode:
-
-```bash
-git clone https://github.com/yourusername/my_workflow_engine.git
-cd my_workflow_engine
-pip install -e .
-
+...
 
 
