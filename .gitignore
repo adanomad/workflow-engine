@@ -32,3 +32,6 @@ ENV/
 # IDE
 .idea/
 .vscode/
+
+# Output
+/workflow_output/
