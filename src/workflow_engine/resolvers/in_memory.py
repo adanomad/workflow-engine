@@ -83,8 +83,10 @@ class InMemoryResolver(BaseResolver):
     async def get_function_config(self, node_data: Node) -> Dict[str, Any]:
         """Retrieves configuration directly from the Node object's config field."""
         logger.debug(f"Retrieving config for node {node_data.id} from node definition.")
-        # Return a copy to prevent modification of the original workflow definition
-        return (node_data.config or {}).copy()
+        if hasattr(node_data, "config"):
+            # Return a copy to prevent modification of the original workflow definition
+            return (node_data.config or {}).copy()  # type: ignore
+        return {}
 
     async def save_node_results(
         self, node_id: str, results: NodeOutputData, run_id: str
