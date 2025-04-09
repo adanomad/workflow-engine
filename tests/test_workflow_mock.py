@@ -130,12 +130,10 @@ async def test_linear_workflow_text_to_json(workflow_executor, mock_resolver):
         "nodes": [
             Node(
                 id=node1_id,
-                name="Generate Text",
                 reference_id="generate_text_file",
             ).model_dump(),
             Node(
                 id=node2_id,
-                name="Process JSON",
                 reference_id="process_text_to_json",
             ).model_dump(),
         ],
@@ -248,17 +246,14 @@ async def test_workflow_with_config(workflow_executor, mock_resolver):
     nodes = [
         Node(
             id=node1_id,
-            name="Generate Multi-Line",
             reference_id="generate_text_file",
         ).model_dump(),
         Node(
             id=node2_id,
-            name="Analyze Data",
             reference_id="analyze_json_data",
         ).model_dump(),
         Node(
             id="node_proc",
-            name="Text to JSON",
             reference_id="process_text_to_json",
         ).model_dump(),
     ]

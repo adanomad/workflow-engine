@@ -96,7 +96,7 @@ class SupabaseResolver(BaseResolver):
 
     async def get_function(self, reference_id: str) -> Callable:
         """
-        Gets function callable from registry based on str_id fetched from Supabase 'tools' table.
+        Gets function callable from registry based on id from Node_functions table
         """
         function_name = reference_id
 

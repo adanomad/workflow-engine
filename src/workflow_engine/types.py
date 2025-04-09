@@ -8,7 +8,6 @@ from dataclasses import dataclass
 
 class Node(BaseModel):
     id: str
-    name: str
     reference_id: str  # str_id of tool in registry/db
 
 

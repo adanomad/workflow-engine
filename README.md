@@ -54,6 +54,12 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
+## Tests
+(mock and integration test)
+```sh
+poetry run pytest 
+```
+
 ## TODO
 
 Allow nodes to be run for multiple iterations
