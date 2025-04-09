@@ -13,12 +13,10 @@ async def linear_example():
         nodes=[
             generate_text_node := we.Node(
                 id="generate_text",
-                name="Generate Text",
                 reference_id=we.functions.builtins.generate_text_file.__name__,
             ),
             process_json_node := we.Node(
                 id="process_json",
-                name="Process JSON",
                 reference_id=we.functions.builtins.process_text_to_json.__name__,
             ),
         ],

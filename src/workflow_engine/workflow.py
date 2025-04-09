@@ -22,16 +22,12 @@ logger = logging.getLogger(__name__)
 class WorkflowExecutionError(Exception):
     """Custom exception for workflow execution errors."""
 
-    def __init__(self, message, node_id=None, node_name=None, original_exception=None):
+    def __init__(self, message, node_id=None, original_exception=None):
         self.node_id = node_id
-        self.node_name = node_name
         self.original_exception = original_exception
         full_message = "Workflow Error"
         if node_id:
-            node_identifier = (
-                f"'{node_name}' ({node_id})" if node_name else f"'{node_id}'"
-            )
-            full_message += f" at Node {node_identifier}"
+            full_message += f" at Node '{node_id}'"
         full_message += f": {message}"
         if original_exception:
             full_message += f"\n  Original Exception: {type(original_exception).__name__}: {original_exception}"
@@ -99,8 +95,7 @@ class WorkflowExecutor:
 
         for node_id in execution_order:
             node_data = self.graph.nodes[node_id]["data"]
-            node_name = node_data.name
-            logger.info(f"Executing Node: {node_data.name} ({node_id})")
+            logger.info(f"Executing Node: ({node_id})")
 
             node_inputs: NodeInputData = {}  # {param_name: [FileExecutionData]}
 
@@ -139,12 +134,11 @@ class WorkflowExecutor:
             # 3. Execute the Node Function
             node_output: NodeOutputData = await self._execute_node(
                 node_id=node_id,
-                node_name=node_name,
                 function=function_callable,
                 node_inputs=node_inputs,
             )
             logger.info(
-                f"Node {node_name} executed, produced {len(node_output)} file objects."
+                f"Node {node_id} executed, produced {len(node_output)} file objects."
             )
 
             # 4. Save Node Results
@@ -155,7 +149,7 @@ class WorkflowExecutor:
                     )
                 )
                 logger.info(
-                    f"Results saved for node {node_name}, {len(final_saved_metadata)} files persisted."
+                    f"Results saved for node {node_id}, {len(final_saved_metadata)} files persisted."
                 )
             except Exception as e:
                 logger.error(
@@ -164,7 +158,6 @@ class WorkflowExecutor:
                 raise WorkflowExecutionError(
                     "Failed to save node results",
                     node_id=node_id,
-                    node_name=node_name,
                     original_exception=e,
                 )
 
@@ -179,7 +172,6 @@ class WorkflowExecutor:
     async def _execute_node(
         self,
         node_id: str,
-        node_name: str,
         function: Callable,
         node_inputs: NodeInputData,
     ) -> NodeOutputData:
@@ -204,7 +196,6 @@ class WorkflowExecutor:
             raise WorkflowExecutionError(
                 f"Missing required parameters: {missing_required}",
                 node_id=node_id,
-                node_name=node_name,
             )
 
         for name, value in node_inputs.items():
@@ -212,7 +203,7 @@ class WorkflowExecutor:
                 call_args[name] = value
             else:
                 logger.warning(
-                    f"Node {node_id} ({node_name}): Input '{name}' provided but not used by function '{function.__name__}'."
+                    f"Node {node_id}: Input '{name}' provided but not used by function '{function.__name__}'."
                 )
 
         # Call function
@@ -233,12 +224,11 @@ class WorkflowExecutor:
             return result
         except Exception as e:
             logger.error(
-                f"Error executing function '{function.__name__}' for node {node_id} ({node_name})",
+                f"Error executing function '{function.__name__}' for node {node_id}",
                 exc_info=True,
             )
             raise WorkflowExecutionError(
                 f"Function execution failed",
                 node_id=node_id,
-                node_name=node_name,
                 original_exception=e,
             )

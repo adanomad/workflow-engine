@@ -44,17 +44,14 @@ async def test_run_real_workflow_on_supabase():
         "nodes": [
             Node(
                 id=NODE_GENERATE_ID,
-                name="Generate Text",
                 reference_id="generate_text_file",
             ).model_dump(),
             Node(
                 id=NODE_ANALYZE_ID,
-                name="Analyze JSON",
                 reference_id="analyze_json_data",
             ).model_dump(),
             Node(
                 id=NODE_PROCESS_ID,
-                name="Text to JSON",
                 reference_id="process_text_to_json",
             ).model_dump(),
         ],
