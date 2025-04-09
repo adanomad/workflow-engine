@@ -6,32 +6,28 @@ import uuid
 import json
 
 
-# Test "input" node
 @registry.register(
     name="generate_text_file",
     description="Generates a simple text file with provided content.",
 )
 def generate_text_file(
-    content: str = "test file",
-    base_name: str = "output",
-    line_count: int = 1,
+    content: str,
+    file_name: str = "file",
 ) -> NodeOutputData:
     """
     Generates one or more text files.
     """
     output_files: NodeOutputData = []
 
-    full_content = "\n".join([content] * line_count)
-    content_bytes = full_content.encode("utf-8")
+    content_bytes = content.encode("utf-8")
 
     # Prepare metadata for the output file
     # The resolver will assign the final ID, user, created_at etc. upon saving.
     output_metadata = File(
-        id=str(uuid.uuid4()),  # Temporary ID for execution context
-        user="temp_user",  # Placeholder, resolver will use its own
-        title=f"{base_name}.txt",
-        file_type="text/plain",  # Mime type
-        metadata={"generator": "generate_text_file", "lines": line_count},
+        id=str(uuid.uuid4()),
+        title=f"{file_name}.txt",
+        file_type="text/plain",
+        metadata={"generator": "generate_text_file"},
     )
 
     exec_data = FileExecutionData(metadata=output_metadata, content=content_bytes)
