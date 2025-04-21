@@ -1,5 +1,5 @@
 # examples/append.py
-from uuid import uuid4
+from src.workflow_engine.core import TextFile
 
 
 # ==============================================================================
@@ -10,7 +10,10 @@ from src.workflow_engine.core import InputEdge, OutputEdge, Workflow
 
 workflow = Workflow(
     nodes=[
-        append := AppendToFileNode(id=str(uuid4()), params=AppendToFileParams(suffix="_append")),
+        append := AppendToFileNode(
+            id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            params=AppendToFileParams(suffix="_append"),
+        ),
     ],
     edges=[],
     input_edges=[
@@ -21,18 +24,24 @@ workflow = Workflow(
         OutputEdge(source_id=append.id, source_key="file", output_key="file"),
     ],
 )
+workflow_json = workflow.model_dump_json(indent=4)
+with open("examples/append.json", "w") as f:
+    f.write(workflow_json)
+
+# make sure serialization roundtrip works
+assert Workflow.model_validate_json(workflow_json) == workflow
 
 
 # ==============================================================================
 # CONTEXT
 
-run_id = str(uuid4())
+run_id = "22222222-2222-2222-2222-222222222222"
 
 from src.workflow_engine.contexts.supabase import SupabaseContext
 context = SupabaseContext(
     run_id=run_id,
     user_id="9dd979c4-6426-40ca-bcaf-7a7f03d550d4",
-    workflow_version_id="0eb2c14e-d2a3-4018-b52a-d458328ac2d8",
+    workflow_version_id="a842f092-0a85-446f-863e-c92ef9c99e67",
     override_paths={"output.txt": "9dd979c4-6426-40ca-bcaf-7a7f03d550d4/bbb5b150-4b25-4cbe-a558-d1b57c76b565"},
 )
 
@@ -47,11 +56,20 @@ algorithm = TopologicalExecutionAlgorithm()
 # ==============================================================================
 # EXECUTION
 
-algorithm.execute(
+input = {
+    "file": { "path": "output.txt" },
+    "text": "This text will be appended to the file.",
+}
+input_file = TextFile.model_validate(input["file"])
+input_text = input_file.read_text(context)
+
+output = algorithm.execute(
     context=context,
     workflow=workflow,
-    input={
-        "file": { "path": "output.txt" },
-        "text": "This text will be appended to the file.",
-    },
+    input=input,
 )
+assert output == {"file": {"path": "output.txt_append"}}
+output_file = TextFile.model_validate(output["file"])
+output_text = output_file.read_text(context)
+
+assert output_text == input_text + "This text will be appended to the file."

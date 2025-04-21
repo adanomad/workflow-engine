@@ -1,0 +1,62 @@
+{
+    "nodes": [
+        {
+            "type": "ConstantInt",
+            "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "params": {
+                "value": 42
+            }
+        },
+        {
+            "type": "ConstantInt",
+            "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "params": {
+                "value": 2025
+            }
+        },
+        {
+            "type": "Add",
+            "id": "abababab-abab-abab-abab-abababababab",
+            "params": {}
+        },
+        {
+            "type": "Add",
+            "id": "abcabcab-cabc-abca-bcab-cabcabcabcab",
+            "params": {}
+        }
+    ],
+    "edges": [
+        {
+            "source_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+            "source_key": "value",
+            "target_id": "abababab-abab-abab-abab-abababababab",
+            "target_key": "a"
+        },
+        {
+            "source_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+            "source_key": "value",
+            "target_id": "abababab-abab-abab-abab-abababababab",
+            "target_key": "b"
+        },
+        {
+            "source_id": "abababab-abab-abab-abab-abababababab",
+            "source_key": "sum",
+            "target_id": "abcabcab-cabc-abca-bcab-cabcabcabcab",
+            "target_key": "a"
+        }
+    ],
+    "input_edges": [
+        {
+            "input_key": "c",
+            "target_id": "abcabcab-cabc-abca-bcab-cabcabcabcab",
+            "target_key": "b"
+        }
+    ],
+    "output_edges": [
+        {
+            "source_id": "abcabcab-cabc-abca-bcab-cabcabcabcab",
+            "source_key": "sum",
+            "output_key": "sum"
+        }
+    ]
+}

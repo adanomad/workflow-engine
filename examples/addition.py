@@ -1,6 +1,4 @@
 # examples/addition.py
-from uuid import uuid4
-
 
 # ==============================================================================
 # WORKFLOW
@@ -27,12 +25,18 @@ workflow = Workflow(
         OutputEdge(source_id=a_plus_b_plus_c.id, source_key="sum", output_key="sum"),
     ],
 )
+workflow_json = workflow.model_dump_json(indent=4)
+with open("examples/addition.json", "w") as f:
+    f.write(workflow_json)
+
+# make sure serialization roundtrip works
+assert Workflow.model_validate_json(workflow_json) == workflow
 
 
 # ==============================================================================
 # CONTEXT
 
-run_id = str(uuid4())
+run_id = "11111111-1111-1111-1111-111111111111"
 
 # from .context.in_memory import InMemoryContext
 # context = InMemoryContext(
@@ -62,8 +66,9 @@ algorithm = TopologicalExecutionAlgorithm()
 # ==============================================================================
 # EXECUTION
 
-algorithm.execute(
+output =algorithm.execute(
     context=context,
     workflow=workflow,
     input={"c": -256},
 )
+assert output == {"sum": 42 + 2025 - 256}
