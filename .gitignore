@@ -34,4 +34,5 @@ ENV/
 .vscode/
 
 # Output
+/local/
 /workflow_output/
