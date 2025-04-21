@@ -3,7 +3,7 @@ from abc import ABC
 import json
 from typing import Any, ClassVar, Sequence, TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict
 
 if TYPE_CHECKING:
     from .context import Context
@@ -25,10 +25,6 @@ class File(BaseModel, ABC):
     def write(self, context: "Context", content: bytes) -> None:
         context.write(file=self, content=content)
 
-    @field_validator("path")
-    def _validate_extension(cls, v: str) -> str:
-        return v
-
 
 class TextFile(File):
     mime_type = "text/plain"
@@ -38,10 +34,6 @@ class TextFile(File):
 
     def write_text(self, context: "Context", text: str) -> None:
         self.write(context, text.encode("utf-8"))
-
-    @field_validator("path")
-    def _validate_extension(cls, v: str) -> str:
-        return v if v.endswith(".txt") else f"{v}.txt"
 
 
 class JSONFile(TextFile):
@@ -56,10 +48,6 @@ class JSONFile(TextFile):
     def write_data(self, context: "Context", data: Any) -> None:
         self.write_text(context, json.dumps(data))
 
-    @field_validator("path")
-    def _validate_extension(cls, v: str) -> str:
-        return v if v.endswith(".json") else f"{v}.json"
-
 
 class JSONLinesFile(TextFile):
     """
@@ -72,10 +60,6 @@ class JSONLinesFile(TextFile):
 
     def write_data(self, context: "Context", data: Sequence[Any]) -> None:
         self.write_text(context, "\n".join(json.dumps(item) for item in data))
-
-    @field_validator("path")
-    def _validate_extension(cls, v: str) -> str:
-        return v if v.endswith(".jsonl") else f"{v}.jsonl"
 
 
 __all__ = [

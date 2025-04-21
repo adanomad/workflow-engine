@@ -146,7 +146,10 @@ class Workflow(BaseModel):
     ) -> Mapping[str, Any]:
         output: dict[str, Any] = {}
         for edge in self.output_edges:
-            output[edge.output_key] = getattr(node_outputs[edge.source_id], edge.source_key)
+            output_field = getattr(node_outputs[edge.source_id], edge.source_key)
+            if isinstance(output_field, BaseModel):
+                output_field = output_field.model_dump()
+            output[edge.output_key] = output_field
         return output
 
 

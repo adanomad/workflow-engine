@@ -39,7 +39,6 @@ class SupabaseContext(Context):
         self.file_bucket_name = file_bucket
         self.workflow_runs_table_name = workflow_runs_table
         self.workflow_node_runs_table_name = workflow_node_runs_table
-        self.bucket_path = f"{self.user_id}/{self.run_id}"
         self.known_paths = {} if override_paths is None else dict(override_paths)
 
     @property
@@ -65,7 +64,7 @@ class SupabaseContext(Context):
         if file.path in self.known_paths:
             path = self.known_paths[file.path]
         else:
-            path = f"{self.bucket_path}/{file.path}"
+            path = f"{self.user_id}/{self.run_id}/{file.path}"
         content = self.file_bucket.download(path)
         return content
 
@@ -77,17 +76,18 @@ class SupabaseContext(Context):
         if file.path in self.known_paths:
             path = self.known_paths[file.path]
         else:
-            path = f"{self.bucket_path}/{file.path}"
+            title = f"{self.run_id}/{file.path}"
             (
                 self.file_metadata_table
                 .insert({
                     "user": self.user_id,
-                    "title": path,
+                    "title": f"{self.run_id}/{file.path}",
                     "file_type": file.mime_type,
                     "file_size": len(content),
                 })
                 .execute()
             )
+            path = f"{self.user_id}/{title}"
             self.known_paths[file.path] = path
         self.file_bucket.upload(
             path=path,
@@ -196,13 +196,15 @@ class SupabaseContext(Context):
         """
         A hook that is called when a workflow finishes execution.
         """
-        self.workflow_runs_table.update({
-            "output": {
-                k: v.model_dump() if isinstance(v, BaseModel) else v
-                for k, v in output.items()
-            },
-            "finished_at": "now()",
-        }).eq("id", self.run_id).execute()
+        (
+            self.workflow_runs_table
+                .update({
+                    "output": output,
+                    "finished_at": "now()",
+                })
+                .eq("id", self.run_id)
+                .execute()
+        )
 
 
 __all__ = [

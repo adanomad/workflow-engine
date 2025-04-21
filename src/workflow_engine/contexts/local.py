@@ -147,10 +147,7 @@ class LocalContext(Context):
     ):
         self._idempotent_write(
             path=self.workflow_output_path,
-            data=json.dumps({
-                k: v.model_dump() if isinstance(v, BaseModel) else v
-                for k, v in output.items()
-            }),
+            data=json.dumps(output),
         )
 
 

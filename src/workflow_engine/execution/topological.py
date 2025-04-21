@@ -27,14 +27,10 @@ class TopologicalExecutionAlgorithm(ExecutionAlgorithm):
             node_id, node_input = ready_nodes.popitem()
             node = workflow.nodes_by_id[node_id]
 
-            cached_output = context.on_node_start(node=node, input=node_input)
-            if cached_output is not None:
-                node_outputs[node.id] = cached_output
-                continue
-
-            output = node(context, node_input)
-            context.on_node_finish(node=node, input=node_input, output=output)
-
+            output = context.on_node_start(node=node, input=node_input)
+            if output is None:
+                output = node(context, node_input)
+                context.on_node_finish(node=node, input=node_input, output=output)
             node_outputs[node.id] = output
             ready_nodes = dict(workflow.get_ready_nodes(
                 input=input,
@@ -49,7 +45,7 @@ class TopologicalExecutionAlgorithm(ExecutionAlgorithm):
             output=output,
         )
 
-        return workflow.get_output(node_outputs)
+        return output
 
 
 __all__ = [

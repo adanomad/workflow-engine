@@ -1,6 +1,6 @@
 from typing import Literal, Type
 
-from ..core import Context, Data, Node, TextFile
+from ..core import Context, Data, Node, Params,TextFile
 
 
 class AppendToFileInput(Data):
@@ -10,7 +10,7 @@ class AppendToFileInput(Data):
 class AppendToFileOutput(Data):
     file: TextFile
 
-class AppendToFileParams(Data):
+class AppendToFileParams(Params):
     suffix: str
 
 class AppendToFileNode(Node[AppendToFileInput, AppendToFileOutput, AppendToFileParams]):

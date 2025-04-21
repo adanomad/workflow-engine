@@ -5,7 +5,7 @@ Simple nodes for testing the workflow engine, with limited usefulness otherwise.
 
 from typing import Literal, Type
 
-from ..core import Context, Data, Empty, Node
+from ..core import Context, Data, Node, Params
 
 
 class AddNodeInput(Data):
@@ -15,8 +15,7 @@ class AddNodeInput(Data):
 class AddNodeOutput(Data):
     sum: int
 
-
-class AddNode(Node[AddNodeInput, AddNodeOutput, Empty]):
+class AddNode(Node[AddNodeInput, AddNodeOutput, Params]):
     type: Literal["Add"] = "Add"
 
     @property

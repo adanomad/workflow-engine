@@ -11,10 +11,16 @@ from typing import (
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from .context import Context
-from .data import Data, Empty, Input_contra, Output_co
+from .data import Empty, Input_contra, Output_co
 
 
-Params_co = TypeVar("Params_co", bound=Data)
+class Params(BaseModel):
+    model_config = ConfigDict(
+        extra="allow",
+        frozen=True,
+    )
+
+Params_co = TypeVar("Params_co", bound=Params)
 T = TypeVar("T")
 
 class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
@@ -26,19 +32,19 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
     type: str # should be a literal string for concrete subclasses
     id: str
     # contains any extra fields for configuring the node
-    params: Params_co = Empty() # type: ignore
+    params: Params_co = Params() # type: ignore
 
     @property
     # @abstractmethod
     def input_type(self) -> Type[Input_contra]: # type: ignore (contravariant return type)
-        # return Data to spare users from having to specify the input type on
+        # return Empty to spare users from having to specify the input type on
         # nodes that don't have any input fields
         return Empty # type: ignore
 
     @property
     # @abstractmethod
     def output_type(self) -> Type[Output_co]:
-        # return Data to spare users from having to specify the output type on
+        # return Empty to spare users from having to specify the output type on
         # nodes that don't have any output fields
         return Empty # type: ignore
 
@@ -73,7 +79,6 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
             cls = _registry.get(self.type)
             if cls is None:
                 raise ValueError(f'Node type "{self.type}" is not registered')
-            print(self, self.model_dump())
             return cls.model_validate(self.model_dump())
         return self
 
@@ -102,4 +107,5 @@ _registry = NodeRegistry()
 
 __all__ = [
     "Node",
+    "Params",
 ]
