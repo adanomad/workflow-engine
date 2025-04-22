@@ -50,6 +50,10 @@ See the `examples` folder for example workflows.
 ## Development
 
 ```sh
+# with poetry (preferred)
+poetry install
+
+# with pip
 pip install -r requirements.txt
 pip install -e .
 ```
@@ -57,7 +61,7 @@ pip install -e .
 ## Tests
 (mock and integration test)
 ```sh
-poetry run pytest 
+poetry run pytest
 ```
 
 ## TODO
