@@ -1,7 +1,6 @@
 # workflow_engine/contexts/supabase.py
 from typing import Any, Mapping
 
-from pydantic import BaseModel
 from supabase import create_client
 
 from ..core import Context, Data, File, Node, Workflow
@@ -11,7 +10,33 @@ from ..utils.iter import only
 
 class SupabaseContext(Context):
     """
-    external_file_ids: a set of extra paths to load from the bucket
+    A context that stores node/workflow inputs/outputs in Supabase tables, and
+    writes files to a Supabase bucket.
+
+    The file_metadata_table should have:
+    - user: the user id
+    - title: the title of the file
+    - file_type: the type of the file
+    - file_size: the size of the file
+
+    The workflow_runs table should have:
+    - id: the id of the workflow run
+    - workflow_id: the id of the workflow
+    - input: the JSON input of the workflow
+    - output: the JSON output of the workflow
+    - started_at: the timestamp when the workflow started
+    - finished_at: the timestamp when the workflow finished
+
+    The workflow_node_runs table should have:
+    - workflow_run_id: the id of the workflow run
+    - node_id: the id of the node
+    - input: the JSON input of the node
+    - output: the JSON output of the node
+    - started_at: the timestamp when the node started
+    - finished_at: the timestamp when the node finished
+
+    Parameters:
+    - override_paths: a set of extra paths to load from the bucket
     """
     def __init__(
             self,
@@ -24,11 +49,11 @@ class SupabaseContext(Context):
             workflow_runs_table: str = "workflow_runs",
             workflow_node_runs_table: str = "workflow_node_runs",
             override_paths: Mapping[str, str] | None = None,
+            supabase_url: str = get_env("SUPABASE_URL"),
+            supabase_key: str = get_env("SUPABASE_SERVICE_KEY"),
     ):
         super().__init__(run_id=run_id)
 
-        supabase_url = get_env("SUPABASE_URL")
-        supabase_key = get_env("SUPABASE_SERVICE_KEY")
         self.supabase = create_client(
             supabase_url=supabase_url,
             supabase_key=supabase_key,
@@ -56,6 +81,12 @@ class SupabaseContext(Context):
     @property
     def workflow_node_runs_table(self):
         return self.supabase.table(self.workflow_node_runs_table_name)
+
+    def get_env(self, key: str, default: str | None = None) -> str:
+        """
+        Maybe in the long run we will have a
+        """
+        return get_env(key, default=default)
 
     def read(
             self,
