@@ -1,7 +1,10 @@
 # workflow_engine/core/edge.py
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict
 
 from .node import Node
+from ..utils.assign import is_assignable
 
 
 class Edge(BaseModel):
@@ -24,12 +27,17 @@ class Edge(BaseModel):
             target: Node,
             target_key: str,
     ) -> "Edge":
-        return cls(
+        """
+        Self-validating factory method.
+        """
+        edge = cls(
             source_id=source.id,
             source_key=source_key,
             target_id=target.id,
             target_key=target_key,
         )
+        edge.validate_types(source, target)
+        return edge
 
     def validate_types(self, source: Node, target: Node):
         if self.source_key not in source.output_fields:
@@ -40,8 +48,9 @@ class Edge(BaseModel):
 
         source_output_type = source.output_fields[self.source_key]
         target_input_type = target.input_fields[self.target_key]
-        if not issubclass(source_output_type, target_input_type):
-            raise ValueError(f"Edge from {source.id} to {target.id} has invalid types: {source_output_type} is not a subclass of {target_input_type}")
+
+        if not is_assignable(source_output_type, target_input_type):
+            raise ValueError(f"Edge from {source.id} to {target.id} has invalid types: {source_output_type} is not assignable to {target_input_type}")
 
 
 class InputEdge(BaseModel):
