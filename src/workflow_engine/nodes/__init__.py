@@ -1,5 +1,9 @@
 # workflow_engine/nodes/__init__.py
-from .arithmetic import AddNode
+from .arithmetic import (
+    AddNode,
+    FactorizationNode,
+    SumNode,
+)
 from .constant import (
     ConstantBool,
     ConstantBoolNode,
@@ -8,11 +12,17 @@ from .constant import (
     ConstantString,
     ConstantStringNode,
 )
+from .json import (
+    ReadJSONLinesNode,
+    ReadJSONNode,
+    WriteJSONLinesNode,
+    WriteJSONLinesParams,
+    WriteJSONNode,
+    WriteJSONParams,
+)
 from .text import (
     AppendToFileNode,
     AppendToFileParams,
-    DumpJSONNode,
-    DumpJSONParams,
 )
 
 
@@ -26,6 +36,12 @@ __all__ = [
     "ConstantIntNode",
     "ConstantString",
     "ConstantStringNode",
-    "DumpJSONNode",
-    "DumpJSONParams",
+    "FactorizationNode",
+    "ReadJSONLinesNode",
+    "ReadJSONNode",
+    "SumNode",
+    "WriteJSONLinesNode",
+    "WriteJSONLinesParams",
+    "WriteJSONNode",
+    "WriteJSONParams",
 ]

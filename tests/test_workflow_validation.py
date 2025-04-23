@@ -8,15 +8,21 @@ from workflow_engine.nodes import (
     AppendToFileParams,
     ConstantBool,
     ConstantBoolNode,
-    DumpJSONNode,
-    DumpJSONParams,
+    FactorizationNode,
+    ReadJSONLinesNode,
+    ReadJSONNode,
+    SumNode,
+    WriteJSONLinesNode,
+    WriteJSONLinesParams,
+    WriteJSONNode,
+    WriteJSONParams,
 )
 
 
 @pytest.mark.unit
 def test_default_parameters():
-    params = DumpJSONParams.model_validate({
-        "file_name": "dump.json",
+    params = WriteJSONParams.model_validate({
+        "file_name": "out.json",
     })
     assert params.indent == 0
 
@@ -49,21 +55,62 @@ def test_extra_parameters():
 
 @pytest.mark.unit
 def test_edge_validation():
-    dump = DumpJSONNode(id="1", params=DumpJSONParams(file_name="dump.json"))
-    append = AppendToFileNode(id="2", params=AppendToFileParams(suffix=".json"))
+    write_node = WriteJSONNode(id="write", params=WriteJSONParams(file_name="out.json"))
+    append_node = AppendToFileNode(id="append", params=AppendToFileParams(suffix=".json"))
 
     # validate that a JSON file can be passed as a Text file
     Edge.from_nodes(
-        source=dump,
-        target=append,
+        source=write_node,
+        target=append_node,
         source_key="file",
         target_key="file",
     )
 
     # validate that a Text file can technically be passed as Any (why would you do this?)
     Edge.from_nodes(
-        source=append,
-        target=dump,
+        source=append_node,
+        target=write_node,
         source_key="file",
+        target_key="data",
+    )
+
+
+@pytest.mark.unit
+def test_generic_edge_validation():
+    factorization_node = FactorizationNode(id="factorization")
+    sum_node = SumNode(id="sum")
+    read_node = ReadJSONLinesNode(id="read")
+    write_node = WriteJSONLinesNode(id="write", params=WriteJSONLinesParams(file_name="out.json"))
+
+    # list[int] -> list[int]
+    Edge.from_nodes(
+        source=factorization_node,
+        target=sum_node,
+        source_key="factors",
+        target_key="values",
+    )
+
+    # list[int] -> list[Any]
+    Edge.from_nodes(
+        source=factorization_node,
+        target=write_node,
+        source_key="factors",
+        target_key="data",
+    )
+
+    # list[Any] -> list[int]
+    with pytest.raises(TypeError):
+        Edge.from_nodes(
+            source=read_node,
+            target=sum_node,
+            source_key="data",
+            target_key="values",
+        )
+
+    # list[Any] -> list[Any]
+    Edge.from_nodes(
+        source=read_node,
+        target=write_node,
+        source_key="data",
         target_key="data",
     )

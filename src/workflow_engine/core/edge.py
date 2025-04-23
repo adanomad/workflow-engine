@@ -1,5 +1,4 @@
 # workflow_engine/core/edge.py
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -49,8 +48,14 @@ class Edge(BaseModel):
         source_output_type = source.output_fields[self.source_key]
         target_input_type = target.input_fields[self.target_key]
 
-        if not is_assignable(source_output_type, target_input_type):
-            raise ValueError(f"Edge from {source.id} to {target.id} has invalid types: {source_output_type} is not assignable to {target_input_type}")
+        # NOTE: since we're dealing with immutable data rather than functions,
+        # covariance is almost always what we want here
+        if not is_assignable(
+            source_output_type,
+            target_input_type,
+            covariant=True,
+        ):
+            raise TypeError(f"Edge from {source.id} to {target.id} has invalid types: {source_output_type} is not assignable to {target_input_type}")
 
 
 class InputEdge(BaseModel):

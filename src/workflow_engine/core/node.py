@@ -8,10 +8,19 @@ from typing import (
     TypeVar,
 )
 
+from overrides import final
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from .context import Context
-from .data import Data, Empty, Input_contra, Output_co
+from .data import Data, Input_contra, Output_co
+
+
+def get_fields(cls: type[BaseModel]) -> Mapping[str, Type[Any]]:
+    return {
+        k: v.annotation
+        for k, v in cls.model_fields.items()
+        if v.annotation is not None
+    }
 
 
 class Params(Data):
@@ -32,12 +41,13 @@ Params_co = TypeVar("Params_co", bound=Params)
 T = TypeVar("T")
 
 
-def get_fields(cls: type[BaseModel]) -> Mapping[str, Type[Any]]:
-    return {
-        k: v.annotation
-        for k, v in cls.model_fields.items()
-        if v.annotation is not None
-    }
+@final
+class Empty(Params):
+    """
+    A Data and Params class that is explicitly not allowed to have any
+    parameters.
+    """
+    pass
 
 
 class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
@@ -49,7 +59,7 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
     type: str # should be a literal string for concrete subclasses
     id: str
     # contains any extra fields for configuring the node
-    params: Params_co = Params() # type: ignore
+    params: Params_co = Empty() # type: ignore
 
     @property
     # @abstractmethod
@@ -67,11 +77,11 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
 
     @property
     def input_fields(self) -> Mapping[str, Type[Any]]:
-        return self.input_type.__annotations__
+        return get_fields(self.input_type)
 
     @property
     def output_fields(self) -> Mapping[str, Type[Any]]:
-        return self.output_type.__annotations__
+        return get_fields(self.output_type)
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
