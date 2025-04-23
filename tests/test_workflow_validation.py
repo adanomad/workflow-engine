@@ -1,6 +1,6 @@
-import pytest
-
+# tests/test_workflow_validation.py
 from pydantic import ValidationError
+import pytest
 
 from workflow_engine.core import Data, Edge, Params
 from workflow_engine.nodes import (
@@ -10,7 +10,6 @@ from workflow_engine.nodes import (
     ConstantBoolNode,
     FactorizationNode,
     ReadJSONLinesNode,
-    ReadJSONNode,
     SumNode,
     WriteJSONLinesNode,
     WriteJSONLinesParams,

@@ -1,13 +1,4 @@
-"""
-An extremely ambitious utility function to check if a source type is assignable
-to a target type.
-
-Does not handle:
-- callables
-- type variables
-- concretely typed subtypes of generic types
-"""
-
+# src/workflow_engine/utils/assign.py
 from enum import Enum
 from types import NoneType, UnionType
 from typing import (
@@ -18,7 +9,6 @@ from typing import (
     Literal,
     Optional,
     TypeAlias,
-    TypeVar,
     Union,
 )
 
@@ -136,6 +126,10 @@ def is_assignable(
 ) -> bool:
     """
     Check if a source object or type is assignable to a target object or type.
+    Does not handle:
+      - callables
+      - type variables
+      - concretely typed subtypes of generic types
 
     Args:
         source: The type of the value being assigned.
@@ -156,3 +150,8 @@ def is_assignable(
         )
         for s in source_expanded
     )
+
+
+__all__ = [
+    "is_assignable",
+]

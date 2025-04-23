@@ -1,5 +1,6 @@
 # workflow_engine/core/file.py
 from abc import ABC
+import datetime
 import json
 from typing import Any, ClassVar, Sequence, TYPE_CHECKING
 
@@ -7,6 +8,13 @@ from pydantic import BaseModel, ConfigDict
 
 if TYPE_CHECKING:
     from .context import Context
+
+
+# HACK: serialize datetime objects
+def custom_json_serializer(obj: object) -> Any:
+    if isinstance(obj, (datetime.datetime, datetime.date)):
+        return obj.isoformat()
+    return None
 
 
 class File(BaseModel, ABC):
@@ -46,7 +54,8 @@ class JSONFile(TextFile):
         return json.loads(self.read_text(context))
 
     def write_data(self, context: "Context", data: Any) -> None:
-        self.write_text(context, json.dumps(data))
+        text = json.dumps(data, default=custom_json_serializer)
+        self.write_text(context, text)
 
 
 class JSONLinesFile(TextFile):
@@ -59,7 +68,11 @@ class JSONLinesFile(TextFile):
         return [json.loads(line) for line in self.read_text(context).splitlines()]
 
     def write_data(self, context: "Context", data: Sequence[Any]) -> None:
-        self.write_text(context, "\n".join(json.dumps(item) for item in data))
+        text = "\n".join(
+            json.dumps(item, default=custom_json_serializer)
+            for item in data
+        )
+        self.write_text(context, text)
 
 
 __all__ = [

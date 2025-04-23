@@ -1,4 +1,4 @@
-# workflow_engine/nodes/text.py
+# workflow_engine/nodes/json.py
 from typing import Any, Literal, Sequence
 
 from ..core import (

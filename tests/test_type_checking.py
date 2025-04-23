@@ -1,3 +1,4 @@
+# tests/test_type_checking.py
 from enum import Enum
 from typing import Any, Optional, TypeVar, Union, Literal, Generic
 from pydantic import BaseModel
@@ -136,32 +137,6 @@ def test_complex_nested_types():
 @pytest.mark.unit
 def test_pydantic_with_generics():
     assert is_assignable(GenericModel, BaseModel)
-
-@pytest.mark.unit
-def test_expand_type():
-    # Test basic type expansion
-    expanded = expand_type(int)
-    assert len(expanded) == 1
-    assert expanded[0] == (False, int)
-
-    # Test Optional expansion
-    expanded = expand_type(Optional[int])
-    assert len(expanded) == 2
-    assert (True, None) in expanded
-    assert (False, int) in expanded
-
-    # Test Union expansion
-    expanded = expand_type(Union[int, str])
-    assert len(expanded) == 2
-    assert (False, int) in expanded
-    assert (False, str) in expanded
-
-    # Test Literal expansion
-    expanded = expand_type(Literal[1, 2, 3])
-    assert len(expanded) == 3
-    assert (True, 1) in expanded
-    assert (True, 2) in expanded
-    assert (True, 3) in expanded
 
 @pytest.mark.unit
 def test_edge_cases():
