@@ -1,10 +1,10 @@
 # workflow_engine/core/__init__.py
 from .context import Context
-from .data import Data, Empty
+from .data import Data
 from .edge import Edge, InputEdge, OutputEdge
 from .execution import ExecutionAlgorithm
 from .file import File, TextFile, JSONFile, JSONLinesFile
-from .node import Node, Params
+from .node import Empty, Node, Params
 from .workflow import Workflow
 
 

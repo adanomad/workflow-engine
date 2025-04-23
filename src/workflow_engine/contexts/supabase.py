@@ -49,10 +49,15 @@ class SupabaseContext(Context):
             workflow_runs_table: str = "workflow_runs",
             workflow_node_runs_table: str = "workflow_node_runs",
             override_paths: Mapping[str, str] | None = None,
-            supabase_url: str = get_env("SUPABASE_URL"),
-            supabase_key: str = get_env("SUPABASE_SERVICE_KEY"),
+            supabase_url: str | None = None,
+            supabase_key: str | None = None,
     ):
         super().__init__(run_id=run_id)
+
+        if supabase_url is None:
+            supabase_url = get_env("SUPABASE_URL")
+        if supabase_key is None:
+            supabase_key = get_env("SUPABASE_SERVICE_KEY")
 
         self.supabase = create_client(
             supabase_url=supabase_url,

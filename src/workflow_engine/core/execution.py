@@ -1,3 +1,4 @@
+# workflow_engine/core/execution.py
 from abc import ABC, abstractmethod
 from typing import Any, Mapping
 

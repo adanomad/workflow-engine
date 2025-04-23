@@ -1,5 +1,5 @@
 # workflow_engine/core/data.py
-from typing import TypeAlias, TypeVar
+from typing import TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -12,8 +12,6 @@ Input_contra = TypeVar("Input_contra", bound=Data, contravariant=True)
 
 Output = TypeVar("Output", bound=Data)
 Output_co = TypeVar("Output_co", bound=Data, covariant=True)
-
-Empty: TypeAlias = Data
 
 
 __all__ = [

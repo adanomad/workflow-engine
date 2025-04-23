@@ -1,6 +1,13 @@
-from typing import Literal, Type
+# workflow_engine/nodes/text.py
+from typing import Any, Literal, Sequence
 
-from ..core import Context, Data, Node, Params,TextFile
+from ..core import (
+    Context,
+    Data,
+    Node,
+    Params,
+    TextFile,
+)
 
 
 class AppendToFileInput(Data):
@@ -17,11 +24,11 @@ class AppendToFileNode(Node[AppendToFileInput, AppendToFileOutput, AppendToFileP
     type: Literal["AppendToFile"] = "AppendToFile"
 
     @property
-    def input_type(self) -> Type[AppendToFileInput]:
+    def input_type(self):
         return AppendToFileInput
 
     @property
-    def output_type(self) -> Type[AppendToFileOutput]:
+    def output_type(self):
         return AppendToFileOutput
 
     def __call__(self, context: Context, input: AppendToFileInput) -> AppendToFileOutput:
