@@ -40,7 +40,7 @@ class SupabaseContext(Context):
     - finished_at: the timestamp when the node finished
 
     Parameters:
-    - override_paths: a set of extra paths to load from the bucket
+    - override_paths: a mapping from file paths to file IDs
     """
     def __init__(
             self,
@@ -103,11 +103,9 @@ class SupabaseContext(Context):
             self,
             file: File,
     ) -> bytes:
-        if file.path in self.known_paths:
-            path = self.known_paths[file.path]
-        else:
-            path = f"{self.run_id}/{file.path}"
-        content = self.file_bucket.download(f"{self.user_id}/{path}")
+        assert file.path in self.known_paths
+        file_id = self.known_paths[file.path]
+        content = self.file_bucket.download(f"{self.user_id}/{file_id}")
         return content
 
     def write(
@@ -116,22 +114,23 @@ class SupabaseContext(Context):
             content: bytes,
     ) -> None:
         if file.path in self.known_paths:
-            path = self.known_paths[file.path]
+            file_id = self.known_paths[file.path]
         else:
             path = f"{self.run_id}/{file.path}"
-            (
+            response = (
                 self.file_metadata_table
-                .insert({
-                    "user": self.user_id,
-                    "title": f"{self.run_id}/{file.path}",
-                    "file_type": file.mime_type,
-                    "file_size": len(content),
-                })
-                .execute()
+                    .insert({
+                        "user": self.user_id,
+                        "title": f"{self.run_id}/{file.path}",
+                        "file_type": file.mime_type,
+                        "file_size": len(content),
+                    })
+                    .execute()
             )
-            self.known_paths[file.path] = path
+            file_id = only(response.data)["id"]
+            self.known_paths[file.path] = file_id
         self.file_bucket.upload(
-            path=f"{self.user_id}/{path}",
+            path=f"{self.user_id}/{file_id}",
             file=content,
             file_options={
                 "content_type": file.mime_type, # type: ignore
@@ -141,7 +140,7 @@ class SupabaseContext(Context):
 
     def _transform_path(self, file: F) -> F:
         """
-        Replace the file's path with the alias from the known_paths mapping.
+        Replace the file's path with the ID.
         """
         assert file.path in self.known_paths
         return file.model_copy(update={
