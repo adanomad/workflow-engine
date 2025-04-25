@@ -1,11 +1,14 @@
 # workflow_engine/contexts/supabase.py
-from typing import Any, Mapping
+from typing import Any, Mapping, TypeVar
 
 from supabase import create_client
 
 from ..core import Context, Data, File, Node, Workflow
 from ..utils.env import get_env
 from ..utils.iter import only
+
+
+F = TypeVar("F", bound=File)
 
 
 class SupabaseContext(Context):
@@ -49,6 +52,7 @@ class SupabaseContext(Context):
             workflow_runs_table: str = "workflow_runs",
             workflow_node_runs_table: str = "workflow_node_runs",
             override_paths: Mapping[str, str] | None = None,
+            overwrites_allowed: bool = False,
             supabase_url: str | None = None,
             supabase_key: str | None = None,
     ):
@@ -70,6 +74,7 @@ class SupabaseContext(Context):
         self.workflow_runs_table_name = workflow_runs_table
         self.workflow_node_runs_table_name = workflow_node_runs_table
         self.known_paths = {} if override_paths is None else dict(override_paths)
+        self.overwrites_allowed = overwrites_allowed
 
     @property
     def file_metadata_table(self):
@@ -100,8 +105,8 @@ class SupabaseContext(Context):
         if file.path in self.known_paths:
             path = self.known_paths[file.path]
         else:
-            path = f"{self.user_id}/{self.run_id}/{file.path}"
-        content = self.file_bucket.download(path)
+            path = f"{self.run_id}/{file.path}"
+        content = self.file_bucket.download(f"{self.user_id}/{path}")
         return content
 
     def write(
@@ -112,7 +117,7 @@ class SupabaseContext(Context):
         if file.path in self.known_paths:
             path = self.known_paths[file.path]
         else:
-            title = f"{self.run_id}/{file.path}"
+            path = f"{self.run_id}/{file.path}"
             (
                 self.file_metadata_table
                 .insert({
@@ -123,16 +128,24 @@ class SupabaseContext(Context):
                 })
                 .execute()
             )
-            path = f"{self.user_id}/{title}"
             self.known_paths[file.path] = path
         self.file_bucket.upload(
-            path=path,
+            path=f"{self.user_id}/{path}",
             file=content,
             file_options={
                 "content_type": file.mime_type, # type: ignore
-                "upsert": "true",
+                "upsert": "true" if self.overwrites_allowed else "false",
             },
         )
+
+    def transform_path(self, file: F) -> F:
+        """
+        Replace the file's path with the alias from the known_paths mapping.
+        """
+        assert file.path in self.known_paths
+        return file.model_copy(update={
+            "path": self.known_paths[file.path],
+        })
 
     def on_workflow_start(
             self,
