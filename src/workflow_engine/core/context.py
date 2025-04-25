@@ -69,11 +69,11 @@ class Context(ABC):
             node: "Node",
             input: Data,
             output: Data,
-    ) -> None:
+    ) -> Data:
         """
         A hook that is called when a node finishes execution.
         """
-        pass
+        return output
 
     def on_workflow_finish(
             self,
@@ -81,11 +81,11 @@ class Context(ABC):
             workflow: "Workflow",
             input: Mapping[str, Any],
             output: Mapping[str, Any],
-    ) -> None:
+    ) -> Mapping[str, Any]:
         """
         A hook that is called when a workflow finishes execution.
         """
-        pass
+        return output
 
 
 __all__ = [

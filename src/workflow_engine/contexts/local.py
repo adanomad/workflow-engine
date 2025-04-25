@@ -132,11 +132,12 @@ class LocalContext(Context):
             node: Node,
             input: Data,
             output: Data,
-    ):
+    ) -> Data:
         self._idempotent_write(
             path=self.get_node_output_path(node.id),
             data=output.model_dump_json(),
         )
+        return output
 
     def on_workflow_finish(
             self,
@@ -144,11 +145,12 @@ class LocalContext(Context):
             workflow: Workflow,
             input: Mapping[str, Any],
             output: Mapping[str, Any],
-    ):
+    ) -> Mapping[str, Any]:
         self._idempotent_write(
             path=self.workflow_output_path,
             data=json.dumps(output),
         )
+        return output
 
 
 __all__ = [

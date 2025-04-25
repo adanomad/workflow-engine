@@ -1,6 +1,7 @@
 # workflow_engine/contexts/supabase.py
 from typing import Any, Mapping, TypeVar
 
+from pydantic import ValidationError
 from supabase import create_client
 
 from ..core import Context, Data, File, Node, Workflow
@@ -138,7 +139,7 @@ class SupabaseContext(Context):
             },
         )
 
-    def transform_path(self, file: F) -> F:
+    def _transform_path(self, file: F) -> F:
         """
         Replace the file's path with the alias from the known_paths mapping.
         """
@@ -220,7 +221,7 @@ class SupabaseContext(Context):
             node: "Node",
             input: Data,
             output: Data,
-    ) -> None:
+    ) -> Data:
         """
         A hook that is called when a node finishes execution.
         """
@@ -234,6 +235,7 @@ class SupabaseContext(Context):
                 .eq("node_id", node.id)
                 .execute()
         )
+        return output
 
     def on_workflow_finish(
             self,
@@ -241,19 +243,27 @@ class SupabaseContext(Context):
             workflow: "Workflow",
             input: Mapping[str, Any],
             output: Mapping[str, Any],
-    ) -> None:
+    ) -> Mapping[str, Any]:
         """
         A hook that is called when a workflow finishes execution.
         """
+        new_output = dict(output)
+        for key in new_output:
+            try:
+                file = File.model_validate(new_output[key])
+                new_output[key] = self._transform_path(file).model_dump()
+            except ValidationError:
+                pass
         (
             self.workflow_runs_table
                 .update({
-                    "output": output,
+                    "output": new_output,
                     "finished_at": "now()",
                 })
                 .eq("id", self.run_id)
                 .execute()
         )
+        return new_output
 
 
 __all__ = [
