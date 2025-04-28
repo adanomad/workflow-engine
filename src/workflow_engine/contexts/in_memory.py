@@ -1,5 +1,9 @@
 # workflow_engine/contexts/in_memory.py
 from ..core import Context, File
+from typing import TypeVar
+
+
+F = TypeVar("F", bound=File)
 
 
 class InMemoryContext(Context):
@@ -18,10 +22,11 @@ class InMemoryContext(Context):
 
     def write(
             self,
-            file: File,
+            file: F,
             content: bytes,
-    ) -> None:
+    ) -> F:
         self.data[file.path] = content
+        return file
 
 
 __all__ = [

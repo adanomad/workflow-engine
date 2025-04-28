@@ -2,9 +2,9 @@
 from abc import ABC
 import datetime
 import json
-from typing import Any, ClassVar, Sequence, TYPE_CHECKING
+from typing import Any, ClassVar, Mapping, Sequence, TYPE_CHECKING, Self
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 if TYPE_CHECKING:
     from .context import Context
@@ -24,14 +24,23 @@ class File(BaseModel, ABC):
     A Context provides the actual implementation to read the file's contents.
     """
     model_config = ConfigDict(frozen=True, extra="forbid")
+    metadata: Mapping[str, Any] = Field(default_factory=dict)
     mime_type: ClassVar[str]
     path: str
 
     def read(self, context: "Context") -> bytes:
         return context.read(file=self)
 
-    def write(self, context: "Context", content: bytes) -> None:
-        context.write(file=self, content=content)
+    def write(self, context: "Context", content: bytes) -> Self:
+        return context.write(file=self, content=content)
+
+    def write_metadata(self, key: str, value: Any) -> Self:
+        if key in self.metadata:
+            assert self.metadata[key] == value
+            return self
+        metadata = dict(self.metadata)
+        metadata[key] = value
+        return self.model_copy(update={"metadata": metadata})
 
 
 class TextFile(File):
@@ -40,8 +49,8 @@ class TextFile(File):
     def read_text(self, context: "Context") -> str:
         return self.read(context).decode("utf-8")
 
-    def write_text(self, context: "Context", text: str) -> None:
-        self.write(context, text.encode("utf-8"))
+    def write_text(self, context: "Context", text: str) -> Self:
+        return self.write(context, text.encode("utf-8"))
 
 
 class JSONFile(TextFile):
@@ -53,9 +62,9 @@ class JSONFile(TextFile):
     def read_data(self, context: "Context") -> Any:
         return json.loads(self.read_text(context))
 
-    def write_data(self, context: "Context", data: Any) -> None:
+    def write_data(self, context: "Context", data: Any) -> Self:
         text = json.dumps(data, default=custom_json_serializer)
-        self.write_text(context, text)
+        return self.write_text(context, text)
 
 
 class JSONLinesFile(TextFile):
@@ -67,12 +76,12 @@ class JSONLinesFile(TextFile):
     def read_data(self, context: "Context") -> Sequence[Any]:
         return [json.loads(line) for line in self.read_text(context).splitlines()]
 
-    def write_data(self, context: "Context", data: Sequence[Any]) -> None:
+    def write_data(self, context: "Context", data: Sequence[Any]) -> Self:
         text = "\n".join(
             json.dumps(item, default=custom_json_serializer)
             for item in data
         )
-        self.write_text(context, text)
+        return self.write_text(context, text)
 
 
 __all__ = [

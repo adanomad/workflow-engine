@@ -1,11 +1,14 @@
 # workflow_engine/contexts/local.py
 import json
 import os
-from typing import Any, Mapping
+from typing import Any, Mapping, TypeVar
 
 from pydantic import BaseModel
 
 from ..core import Context, Data, File, Node, Workflow
+
+
+F = TypeVar("F", bound=File)
 
 
 class LocalContext(Context):
@@ -68,13 +71,14 @@ class LocalContext(Context):
 
     def write(
             self,
-            file: File,
+            file: F,
             content: bytes,
-    ) -> None:
+    ) -> F:
         path = self.get_file_path(file.path)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "wb") as f:
             f.write(content)
+        return file
 
     def on_workflow_start(
             self,

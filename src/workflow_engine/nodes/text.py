@@ -1,5 +1,6 @@
 # workflow_engine/nodes/text.py
-from typing import Any, Literal, Sequence
+import os
+from typing import Literal
 
 from ..core import (
     Context,
@@ -34,8 +35,9 @@ class AppendToFileNode(Node[AppendToFileInput, AppendToFileOutput, AppendToFileP
     def __call__(self, context: Context, input: AppendToFileInput) -> AppendToFileOutput:
         old_text = input.file.read_text(context)
         new_text = old_text + input.text
-        new_file = TextFile(path=input.file.path + self.params.suffix)
-        new_file.write_text(context, text=new_text)
+        filename, ext = os.path.splitext(input.file.path)
+        new_file = TextFile(path=filename + self.params.suffix + ext)
+        new_file = new_file.write_text(context, text=new_text)
         return AppendToFileOutput(file=new_file)
 
 

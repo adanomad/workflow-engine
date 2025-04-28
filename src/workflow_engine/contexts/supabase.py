@@ -1,12 +1,12 @@
 # workflow_engine/contexts/supabase.py
 from typing import Any, Mapping, TypeVar
 
-from pydantic import ValidationError
 from supabase import create_client
 
 from ..core import Context, Data, File, Node, Workflow
 from ..utils.env import get_env
 from ..utils.iter import only
+from ..utils.uuid import is_valid_uuid
 
 
 F = TypeVar("F", bound=File)
@@ -52,7 +52,6 @@ class SupabaseContext(Context):
             file_bucket: str = "documents_storage",
             workflow_runs_table: str = "workflow_runs",
             workflow_node_runs_table: str = "workflow_node_runs",
-            override_paths: Mapping[str, str] | None = None,
             overwrites_allowed: bool = False,
             supabase_url: str | None = None,
             supabase_key: str | None = None,
@@ -74,7 +73,6 @@ class SupabaseContext(Context):
         self.file_bucket_name = file_bucket
         self.workflow_runs_table_name = workflow_runs_table
         self.workflow_node_runs_table_name = workflow_node_runs_table
-        self.known_paths = {} if override_paths is None else dict(override_paths)
         self.overwrites_allowed = overwrites_allowed
 
     @property
@@ -99,36 +97,41 @@ class SupabaseContext(Context):
         """
         return get_env(key, default=default)
 
+    def get_file_id(self, file: File) -> str | None:
+        if "file_id" in file.metadata:
+            file_id = file.metadata["file_id"]
+            assert isinstance(file_id, str)
+            return file_id
+        elif is_valid_uuid(file.path):
+            return file.path
+        else:
+            return None
+
     def read(
             self,
             file: File,
     ) -> bytes:
-        assert file.path in self.known_paths
-        file_id = self.known_paths[file.path]
+        file_id = self.get_file_id(file)
+        if file_id is None:
+            raise ValueError(f"File {file.path} not found")
         content = self.file_bucket.download(f"{self.user_id}/{file_id}")
         return content
 
     def write(
             self,
-            file: File,
+            file: F,
             content: bytes,
-    ) -> None:
-        if file.path in self.known_paths:
-            file_id = self.known_paths[file.path]
-        else:
-            path = f"{self.run_id}/{file.path}"
-            response = (
-                self.file_metadata_table
-                    .insert({
-                        "user": self.user_id,
-                        "title": f"{self.run_id}/{file.path}",
-                        "file_type": file.mime_type,
-                        "file_size": len(content),
-                    })
-                    .execute()
-            )
-            file_id = only(response.data)["id"]
-            self.known_paths[file.path] = file_id
+    ) -> F:
+        insert_dict = {
+            "user": self.user_id,
+            "title": f"{self.run_id}/{file.path}",
+            "file_type": file.mime_type,
+            "file_size": len(content),
+        }
+        if (file_id := self.get_file_id(file)) is not None:
+            insert_dict["id"] = file_id
+        response = self.file_metadata_table.insert(insert_dict).execute()
+        file_id = only(response.data)["id"]
         self.file_bucket.upload(
             path=f"{self.user_id}/{file_id}",
             file=content,
@@ -137,15 +140,7 @@ class SupabaseContext(Context):
                 "upsert": "true" if self.overwrites_allowed else "false",
             },
         )
-
-    def _transform_path(self, file: F) -> F:
-        """
-        Replace the file's path with the ID.
-        """
-        assert file.path in self.known_paths
-        return file.model_copy(update={
-            "path": self.known_paths[file.path],
-        })
+        return file.write_metadata("file_id", file_id)
 
     def on_workflow_start(
             self,
@@ -246,23 +241,16 @@ class SupabaseContext(Context):
         """
         A hook that is called when a workflow finishes execution.
         """
-        new_output = dict(output)
-        for key in new_output:
-            try:
-                file = File.model_validate(new_output[key])
-                new_output[key] = self._transform_path(file).model_dump()
-            except ValidationError:
-                pass
         (
             self.workflow_runs_table
                 .update({
-                    "output": new_output,
+                    "output": output,
                     "finished_at": "now()",
                 })
                 .eq("id", self.run_id)
                 .execute()
         )
-        return new_output
+        return output
 
 
 __all__ = [
