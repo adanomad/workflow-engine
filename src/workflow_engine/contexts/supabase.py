@@ -136,7 +136,7 @@ class SupabaseContext(Context):
             path=f"{self.user_id}/{file_id}",
             file=content,
             file_options={
-                "content_type": file.mime_type, # type: ignore
+                "content-type": file.mime_type,
                 "upsert": "true" if self.overwrites_allowed else "false",
             },
         )
