@@ -15,12 +15,12 @@ from .context import Context
 from .data import Data, Input_contra, Output_co
 
 
-def get_fields(cls: type[BaseModel]) -> Mapping[str, Type[Any]]:
-    return {
-        k: v.annotation
-        for k, v in cls.model_fields.items()
-        if v.annotation is not None
-    }
+def get_fields(cls: type[BaseModel]) -> Mapping[str, tuple[type[Any], bool]]:
+    fields: Mapping[str, tuple[type[Any], bool]] = {}
+    for k, v in cls.model_fields.items():
+        assert v.annotation is not None
+        fields[k] = (v.annotation, v.is_required())
+    return fields
 
 
 class Params(Data):
@@ -37,7 +37,7 @@ class Params(Data):
         super().__init_subclass__(**kwargs)
 
 
-Params_co = TypeVar("Params_co", bound=Params)
+Params_co = TypeVar("Params_co", bound=Params, covariant=True)
 T = TypeVar("T")
 
 
@@ -62,7 +62,6 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
     params: Params_co = Empty() # type: ignore
 
     @property
-    # @abstractmethod
     def input_type(self) -> Type[Input_contra]: # type: ignore (contravariant return type)
         # return Empty to spare users from having to specify the input type on
         # nodes that don't have any input fields
@@ -76,11 +75,11 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
         return Empty # type: ignore
 
     @property
-    def input_fields(self) -> Mapping[str, Type[Any]]:
+    def input_fields(self) -> Mapping[str, tuple[Type[Any], bool]]:
         return get_fields(self.input_type)
 
     @property
-    def output_fields(self) -> Mapping[str, Type[Any]]:
+    def output_fields(self) -> Mapping[str, tuple[Type[Any], bool]]:
         return get_fields(self.output_type)
 
     def __init_subclass__(cls, **kwargs):
@@ -100,7 +99,10 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
 
     @model_validator(mode="after") # type: ignore
     def _to_subclass(self):
-        # NOTE: This trick only works if Node itself can be instantiated, so we
+        """
+        Replaces the Node object with an instance of the registered subclass.
+        """
+        # HACK: This trick only works if Node itself can be instantiated, so we
         # cannot make it an ABC even though it has many unimplemented methods.
         if self.__class__ is Node:
             cls = _registry.get(self.type)

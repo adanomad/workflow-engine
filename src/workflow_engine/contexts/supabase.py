@@ -1,11 +1,15 @@
 # workflow_engine/contexts/supabase.py
-from typing import Any, Mapping
+from typing import Any, Mapping, TypeVar
 
+from pydantic import ValidationError
 from supabase import create_client
 
 from ..core import Context, Data, File, Node, Workflow
 from ..utils.env import get_env
 from ..utils.iter import only
+
+
+F = TypeVar("F", bound=File)
 
 
 class SupabaseContext(Context):
@@ -36,7 +40,7 @@ class SupabaseContext(Context):
     - finished_at: the timestamp when the node finished
 
     Parameters:
-    - override_paths: a set of extra paths to load from the bucket
+    - override_paths: a mapping from file paths to file IDs
     """
     def __init__(
             self,
@@ -49,6 +53,7 @@ class SupabaseContext(Context):
             workflow_runs_table: str = "workflow_runs",
             workflow_node_runs_table: str = "workflow_node_runs",
             override_paths: Mapping[str, str] | None = None,
+            overwrites_allowed: bool = False,
             supabase_url: str | None = None,
             supabase_key: str | None = None,
     ):
@@ -70,6 +75,7 @@ class SupabaseContext(Context):
         self.workflow_runs_table_name = workflow_runs_table
         self.workflow_node_runs_table_name = workflow_node_runs_table
         self.known_paths = {} if override_paths is None else dict(override_paths)
+        self.overwrites_allowed = overwrites_allowed
 
     @property
     def file_metadata_table(self):
@@ -97,11 +103,9 @@ class SupabaseContext(Context):
             self,
             file: File,
     ) -> bytes:
-        if file.path in self.known_paths:
-            path = self.known_paths[file.path]
-        else:
-            path = f"{self.user_id}/{self.run_id}/{file.path}"
-        content = self.file_bucket.download(path)
+        assert file.path in self.known_paths
+        file_id = self.known_paths[file.path]
+        content = self.file_bucket.download(f"{self.user_id}/{file_id}")
         return content
 
     def write(
@@ -110,29 +114,38 @@ class SupabaseContext(Context):
             content: bytes,
     ) -> None:
         if file.path in self.known_paths:
-            path = self.known_paths[file.path]
+            file_id = self.known_paths[file.path]
         else:
-            title = f"{self.run_id}/{file.path}"
-            (
+            path = f"{self.run_id}/{file.path}"
+            response = (
                 self.file_metadata_table
-                .insert({
-                    "user": self.user_id,
-                    "title": f"{self.run_id}/{file.path}",
-                    "file_type": file.mime_type,
-                    "file_size": len(content),
-                })
-                .execute()
+                    .insert({
+                        "user": self.user_id,
+                        "title": f"{self.run_id}/{file.path}",
+                        "file_type": file.mime_type,
+                        "file_size": len(content),
+                    })
+                    .execute()
             )
-            path = f"{self.user_id}/{title}"
-            self.known_paths[file.path] = path
+            file_id = only(response.data)["id"]
+            self.known_paths[file.path] = file_id
         self.file_bucket.upload(
-            path=path,
+            path=f"{self.user_id}/{file_id}",
             file=content,
             file_options={
                 "content_type": file.mime_type, # type: ignore
-                "upsert": "true",
+                "upsert": "true" if self.overwrites_allowed else "false",
             },
         )
+
+    def _transform_path(self, file: F) -> F:
+        """
+        Replace the file's path with the ID.
+        """
+        assert file.path in self.known_paths
+        return file.model_copy(update={
+            "path": self.known_paths[file.path],
+        })
 
     def on_workflow_start(
             self,
@@ -207,7 +220,7 @@ class SupabaseContext(Context):
             node: "Node",
             input: Data,
             output: Data,
-    ) -> None:
+    ) -> Data:
         """
         A hook that is called when a node finishes execution.
         """
@@ -221,6 +234,7 @@ class SupabaseContext(Context):
                 .eq("node_id", node.id)
                 .execute()
         )
+        return output
 
     def on_workflow_finish(
             self,
@@ -228,19 +242,27 @@ class SupabaseContext(Context):
             workflow: "Workflow",
             input: Mapping[str, Any],
             output: Mapping[str, Any],
-    ) -> None:
+    ) -> Mapping[str, Any]:
         """
         A hook that is called when a workflow finishes execution.
         """
+        new_output = dict(output)
+        for key in new_output:
+            try:
+                file = File.model_validate(new_output[key])
+                new_output[key] = self._transform_path(file).model_dump()
+            except ValidationError:
+                pass
         (
             self.workflow_runs_table
                 .update({
-                    "output": output,
+                    "output": new_output,
                     "finished_at": "now()",
                 })
                 .eq("id", self.run_id)
                 .execute()
         )
+        return new_output
 
 
 __all__ = [

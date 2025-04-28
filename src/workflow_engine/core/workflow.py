@@ -46,14 +46,14 @@ class Workflow(BaseModel):
     @cached_property
     def input_fields(self) -> Mapping[str, Type[Any]]:
         return {
-            edge.source_key: self.nodes_by_id[edge.source_id].output_fields[edge.source_key]
+            edge.source_key: self.nodes_by_id[edge.source_id].output_fields[edge.source_key][0]
             for edge in self.edges
         }
 
     @cached_property
     def output_fields(self) -> Mapping[str, Type[Any]]:
         return {
-            edge.target_key: self.nodes_by_id[edge.target_id].input_fields[edge.target_key]
+            edge.target_key: self.nodes_by_id[edge.target_id].input_fields[edge.target_key][0]
             for edge in self.edges
         }
 
@@ -73,9 +73,9 @@ class Workflow(BaseModel):
     def _validate_nodes(self):
         # make sure that for each node, all input edges are present
         for node in self.nodes:
-            for key in node.input_fields:
-                if key not in node.input_fields:
-                    raise ValueError(f"Node {node.id} has no input field {key}")
+            for key, (_, required) in node.input_fields.items():
+                if required and key not in self.edges_by_target[node.id]:
+                    raise ValueError(f"Node {node.id} has no required input edge {key}")
         return self
 
     @model_validator(mode="after")
