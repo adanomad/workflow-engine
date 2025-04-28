@@ -5,7 +5,7 @@ Simple nodes for testing the workflow engine, with limited usefulness otherwise.
 
 from typing import Literal, Sequence
 
-from ..core import Context, Data, Node, Params
+from ..core import Context, Data, Empty, Node, Params
 
 
 class AddNodeInput(Data):
@@ -15,7 +15,7 @@ class AddNodeInput(Data):
 class SumOutput(Data):
     sum: int
 
-class AddNode(Node[AddNodeInput, SumOutput, Params]):
+class AddNode(Node[AddNodeInput, SumOutput, Empty]):
     type: Literal["Add"] = "Add"
 
     @property
@@ -36,7 +36,7 @@ class SumNodeInput(Data):
 class SumNodeOutput(Data):
     sum: int
 
-class SumNode(Node[SumNodeInput, SumNodeOutput, Params]):
+class SumNode(Node[SumNodeInput, SumNodeOutput, Empty]):
     type: Literal["Sum"] = "Sum"
 
     @property

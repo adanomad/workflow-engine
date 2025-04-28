@@ -35,14 +35,13 @@ assert Workflow.model_validate_json(workflow_json) == workflow
 # ==============================================================================
 # CONTEXT
 
-run_id = "22222222-2222-2222-2222-222222222222"
+run_id = "22222222-2222-2222-2222-222222222227"
 
 from src.workflow_engine.contexts.supabase import SupabaseContext
 context = SupabaseContext(
     run_id=run_id,
     user_id="9dd979c4-6426-40ca-bcaf-7a7f03d550d4",
     workflow_version_id="a842f092-0a85-446f-863e-c92ef9c99e67",
-    override_paths={"output.txt": "9dd979c4-6426-40ca-bcaf-7a7f03d550d4/bbb5b150-4b25-4cbe-a558-d1b57c76b565"},
 )
 
 
@@ -57,7 +56,13 @@ algorithm = TopologicalExecutionAlgorithm()
 # EXECUTION
 
 input = {
-    "file": { "path": "output.txt" },
+    # an existing file in the database with the contents "Hello, world!"
+    "file": {
+        "path": "output.txt",
+        "metadata": {
+            "file_id": "bbb5b150-4b25-4cbe-a558-d1b57c76b565",
+        },
+    },
     "text": "This text will be appended to the file.",
 }
 input_file = TextFile.model_validate(input["file"])
@@ -68,8 +73,11 @@ output = algorithm.execute(
     workflow=workflow,
     input=input,
 )
-assert output == {"file": {"path": "output.txt_append"}}
+print(output)
+
 output_file = TextFile.model_validate(output["file"])
+assert output_file.path == "output_append.txt"
 output_text = output_file.read_text(context)
+print(output_text)
 
 assert output_text == input_text + "This text will be appended to the file."

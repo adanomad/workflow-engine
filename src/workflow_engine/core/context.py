@@ -1,12 +1,15 @@
 # workflow_engine/core/context.py
 from abc import ABC, abstractmethod
-from typing import Any, TYPE_CHECKING, Mapping
+from typing import Any, TYPE_CHECKING, TypeVar, Mapping
 
 from .data import Data
 from .file import File
 if TYPE_CHECKING:
     from .node import Node
     from .workflow import Workflow
+
+
+F = TypeVar("F", bound=File)
 
 
 class Context(ABC):
@@ -30,9 +33,9 @@ class Context(ABC):
     @abstractmethod
     def write(
             self,
-            file: File,
+            file: F,
             content: bytes,
-    ) -> None:
+    ) -> F:
         raise NotImplementedError("Subclasses must implement this method")
 
     def on_workflow_start(
