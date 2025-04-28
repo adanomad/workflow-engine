@@ -55,7 +55,7 @@ class Edge(BaseModel):
             target_input_type,
             covariant=True,
         ):
-            raise TypeError(f"Edge from {source.id} to {target.id} has invalid types: {source_output_type} is not assignable to {target_input_type}")
+            raise TypeError(f"Edge from {source.id}.{self.source_key} to {target.id}.{self.target_key} has invalid types: {source_output_type} is not assignable to {target_input_type}")
 
 
 class InputEdge(BaseModel):
@@ -83,6 +83,21 @@ class InputEdge(BaseModel):
             target_key=target_key,
         )
 
+    def validate_types(self, input_type: type, target: Node):
+        if self.target_key not in target.input_fields:
+            raise ValueError(f"Target node {target.id} does not have a {self.target_key} field")
+
+        target_input_type = target.input_fields[self.target_key]
+
+        # NOTE: since we're dealing with immutable data rather than functions,
+        # covariance is almost always what we want here
+        if not is_assignable(
+            input_type,
+            target_input_type,
+            covariant=True,
+        ):
+            raise TypeError(f"Input edge to {target.id}.{self.target_key} has invalid types: {input_type} is not assignable to {target_input_type}")
+
 
 class OutputEdge(BaseModel):
     """
@@ -108,6 +123,21 @@ class OutputEdge(BaseModel):
             source_key=source_key,
             output_key=output_key,
         )
+
+    def validate_types(self, source: Node, output_type: type):
+        if self.source_key not in source.output_fields:
+            raise ValueError(f"Source node {source.id} does not have a {self.source_key} field")
+
+        source_output_type = source.output_fields[self.source_key]
+
+        # NOTE: since we're dealing with immutable data rather than functions,
+        # covariance is almost always what we want here
+        if not is_assignable(
+            source_output_type,
+            output_type,
+            covariant=True,
+        ):
+            raise TypeError(f"Output edge from {source.id}.{self.source_key} has invalid types: {source_output_type} is not assignable to {output_type}")
 
 
 __all__ = [
