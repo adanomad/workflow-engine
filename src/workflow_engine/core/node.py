@@ -2,14 +2,18 @@
 from typing import (
     Any,
     Generic,
+    get_origin,
     _LiteralGenericAlias, # type: ignore
     Mapping,
     Type,
     TypeVar,
+    Unpack,
 )
 
 from overrides import final
 from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic._internal._generics import PydanticGenericMetadata
+from pydantic._internal._model_construction import ModelMetaclass
 
 from .context import Context
 from .data import Data, Input_contra, Output_co
@@ -82,16 +86,19 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
     def output_fields(self) -> Mapping[str, tuple[Type[Any], bool]]:
         return get_fields(self.output_type)
 
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
+    def __init_subclass__(cls: ModelMetaclass, **kwargs: Unpack[ConfigDict]):
+        super().__init_subclass__(**kwargs) # type: ignore
 
-        # Get type annotation of 'type' field from class annotations
+        metadata: PydanticGenericMetadata | None = getattr(cls, "__pydantic_generic_metadata__", None)
+        if metadata is not None and len(metadata["parameters"]) > 0:
+            assert cls.__base__ is not None
+            cls = cls.__base__
+        name = cls.__name__
+        assert name.endswith("Node"), name
         type_annotation = cls.__annotations__.get("type", None)
-        if type_annotation is not None:
-            name = cls.__name__
-            assert name.endswith("Node"), name
-
-            assert isinstance(type_annotation, _LiteralGenericAlias)
+        if type_annotation is None or not isinstance(type_annotation, _LiteralGenericAlias):
+            _registry.register_base(cls)
+        else:
             type_name, = type_annotation.__args__
             assert isinstance(type_name, str), type_name
             assert type_name == name.removesuffix("Node")
@@ -119,6 +126,7 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
 class NodeRegistry:
     def __init__(self):
         self.types: dict[str, type["Node"]] = {}
+        self.base_classes: list[type["Node"]] = []
 
     def register(self, type: str, cls: type["Node"]):
         if type in self.types and cls is not self.types[type]:
@@ -130,6 +138,14 @@ class NodeRegistry:
         if type not in self.types:
             raise ValueError(f'Node type "{type}" is not registered')
         return self.types[type]
+
+    def register_base(self, cls: type["Node"]):
+        if cls not in self.base_classes:
+            self.base_classes.append(cls)
+            print(f"Registering class {cls.__name__} as base node type")
+
+    def is_base_class(self, cls: type["Node"]) -> bool:
+        return cls in self.base_classes
 
 _registry = NodeRegistry()
 
