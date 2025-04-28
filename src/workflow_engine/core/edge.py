@@ -45,8 +45,8 @@ class Edge(BaseModel):
         if self.target_key not in target.input_fields:
             raise ValueError(f"Target node {target.id} does not have a {self.target_key} field")
 
-        source_output_type = source.output_fields[self.source_key]
-        target_input_type = target.input_fields[self.target_key]
+        source_output_type, _ = source.output_fields[self.source_key]
+        target_input_type, _ = target.input_fields[self.target_key]
 
         # NOTE: since we're dealing with immutable data rather than functions,
         # covariance is almost always what we want here
@@ -87,7 +87,7 @@ class InputEdge(BaseModel):
         if self.target_key not in target.input_fields:
             raise ValueError(f"Target node {target.id} does not have a {self.target_key} field")
 
-        target_input_type = target.input_fields[self.target_key]
+        target_input_type, _ = target.input_fields[self.target_key]
 
         # NOTE: since we're dealing with immutable data rather than functions,
         # covariance is almost always what we want here
@@ -128,7 +128,7 @@ class OutputEdge(BaseModel):
         if self.source_key not in source.output_fields:
             raise ValueError(f"Source node {source.id} does not have a {self.source_key} field")
 
-        source_output_type = source.output_fields[self.source_key]
+        source_output_type, _ = source.output_fields[self.source_key]
 
         # NOTE: since we're dealing with immutable data rather than functions,
         # covariance is almost always what we want here

@@ -1,8 +1,8 @@
 # workflow_engine/core/node.py
+import re
 from typing import (
     Any,
     Generic,
-    get_origin,
     _LiteralGenericAlias, # type: ignore
     Mapping,
     Type,
@@ -54,6 +54,9 @@ class Empty(Params):
     pass
 
 
+generic_pattern = re.compile(r"^[a-zA-Z]\w+\[.*\]$")
+
+
 class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
     model_config = ConfigDict(
         extra="forbid",
@@ -89,8 +92,7 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
     def __init_subclass__(cls: ModelMetaclass, **kwargs: Unpack[ConfigDict]):
         super().__init_subclass__(**kwargs) # type: ignore
 
-        metadata: PydanticGenericMetadata | None = getattr(cls, "__pydantic_generic_metadata__", None)
-        if metadata is not None and len(metadata["parameters"]) > 0:
+        while generic_pattern.match(cls.__name__) is not None:
             assert cls.__base__ is not None
             cls = cls.__base__
         name = cls.__name__
@@ -109,9 +111,9 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
         """
         Replaces the Node object with an instance of the registered subclass.
         """
-        # HACK: This trick only works if Node itself can be instantiated, so we
-        # cannot make it an ABC even though it has many unimplemented methods.
-        if self.__class__ is Node:
+        # HACK: This trick only works if the base class can be instantiated, so
+        # we cannot make it an ABC even if it has unimplemented methods.
+        if _registry.is_base_class(self.__class__):
             cls = _registry.get(self.type)
             if cls is None:
                 raise ValueError(f'Node type "{self.type}" is not registered')
