@@ -1,71 +1,143 @@
-# Workflow Engine
+# Aceteam Workflow Engine
 
-Workflow Engine is a modular workflow orchestration system designed for running and chaining node-based tasks. It currently supports a file-based data model for persisting node outputs and passing data between nodes based on MIME types.
+A powerful, modular workflow orchestration system designed for composing complex computational tasks from smaller, configurable steps. This engine powers the workflow functionality in [Aceteam.ai](https://aceteam.ai/workflow-engine) and is now available as an open-source package.
 
-## Getting Started
+## Overview
 
-```sh
-pip install ... # TODO
+The Workflow Engine enables you to:
+
+- Define workflows as directed acyclic graphs (DAGs)
+- Chain node-based tasks with type-safe data passing
+- Persist and retrieve node outputs using various storage backends
+- Execute workflows programmatically or via API
+
+## Installation
+
+```bash
+pip install aceteam-workflow-engine  # TODO: Package name to be finalized
 ```
 
-See the `examples` folder for example workflows.
+## Quick Start
 
-## Features
+```python
+from workflow_engine import WorkflowExecutor
+from workflow_engine.contexts import SupabaseContext
 
-- **Graph-Based Workflow Execution:**
-  Execute workflows defined as directed graphs. The engine uses topological sorting for dependency resolution.
+# Initialize the workflow executor
+executor = WorkflowExecutor(context=SupabaseContext())
 
-- **Modular Node Execution:**
-  Each node processes inputs, executes a function, and produces outputs. Data is passed between nodes based on MIME types.
+# Load and run a workflow
+workflow = executor.load_workflow("examples/addition.json")
+result = executor.execute(workflow, {"input": 5})
+```
 
-- **File-Based Data Persistence:**
-  Node outputs are wrapped in a `FileExecutionData` object, saved to a document store (using Supabase), and retrieved by matching MIME types.
+Check the `examples` directory for more sample workflows:
 
-- **Flexible Resolver Architecture:**
-  The engine decouples workflow logic from storage and function retrieval using a `BaseResolver` interface, with a concrete `SupabaseResolver` implementation.
+- `addition.py/json`: Basic arithmetic operations
+- `append.py/json`: Text manipulation
+- `linear.py`: Linear workflow example
 
-- **Robust Error Handling and Logging:**
-  Built-in error propagation and logging help to diagnose and resolve issues during workflow execution.
+## Key Features
 
-- **Future Enhancements:**
-  Planned improvements include support for:
-  - A more flexible data model (e.g., ephemeral and in-memory data)
-  - Iterative workflows and sub-workflows (allowing controlled cycles)
-  - Enhanced concurrency, parallel support
+### Core Functionality
 
-### Key Modules
+- **Graph-Based Execution**: Workflows are executed as DAGs with automatic dependency resolution
+- **Type-Safe Data Flow**: Data passing between nodes is validated using MIME types
+- **Flexible Storage**: Supports multiple storage backends (Supabase, Local, In-Memory)
+- **Error Handling**: Robust error propagation and logging system
+- **Versioning**: Built-in support for workflow versioning
 
-- **`workflow.py`**
-  Contains the `WorkflowExecutor` class, which:
-  - Loads and validates workflows as directed acyclic graphs (DAGs)
-  - Executes nodes in topological order
-  - Handles input gathering, function invocation, and saving of results
+### Node Types
 
-- **`types.py`**
-  Contains the Pydantic and dataclass models for:
-  - Defining the workflow structure (`Node`, `Edge`, `WorkflowGraph`)
-  - Representing file-based data (`File`, `FileExecutionData`)
-  - Utility functions like `calc_file_size`
+- **Input Nodes**: Accept workflow inputs with type constraints
+- **Processing Nodes**: Execute computational tasks with configurable parameters
+- **Output Nodes**: Format and return workflow results
+
+### Storage Backends
+
+- **Supabase**: Primary storage backend for production use
+- **Local**: File-system based storage for development
+- **In-Memory**: Lightweight storage for testing
+
+## Architecture
+
+```
+src/workflow_engine/
+├── contexts/          # Storage backend implementations
+│   ├── in_memory.py  # In-memory storage
+│   ├── local.py      # Local file system storage
+│   └── supabase.py   # Supabase storage integration
+├── core/             # Core workflow components
+│   ├── context.py    # Execution context
+│   ├── data.py       # Data handling
+│   ├── edge.py       # Edge definitions
+│   ├── execution.py  # Execution logic
+│   ├── file.py       # File handling
+│   ├── node.py       # Node base classes
+│   └── workflow.py   # Workflow definitions
+├── execution/        # Execution strategies
+│   └── topological.py # DAG-based execution
+├── functions/        # Built-in functions
+├── nodes/           # Node implementations
+│   ├── arithmetic.py # Math operations
+│   ├── constant.py   # Constant values
+│   ├── json.py       # JSON operations
+│   └── text.py       # Text operations
+├── resolvers/        # Data resolution
+│   ├── base.py      # Base resolver interface
+│   ├── in_memory.py # In-memory resolver
+│   └── supabase.py  # Supabase resolver
+└── utils/           # Helper utilities
+```
 
 ## Development
 
-```sh
-# with poetry (preferred)
+### Setup
+
+```bash
+# Using Poetry (recommended)
 poetry install
 
-# with pip
+# Using pip
 pip install -r requirements.txt
 pip install -e .
 ```
 
-## Tests
-(mock and integration test)
-```sh
-poetry run pytest
+### Testing
+
+```bash
+poetry run pytest  # Runs both unit and integration tests
 ```
 
-## TODO
+## Documentation
 
-Allow nodes to be run for multiple iterations
-Support parallel workflows
-Finish in_memory implementation
+- [Aceteam Workflow Documentation](https://aceteam.ai/workflow-engine)
+- [API Reference](https://aceteam.ai/docs/api) (TODO)
+- [Examples](./examples)
+
+Available test suites:
+
+- `test_type_checking.py`: Type system validation
+- `test_workflow_mock.py`: Unit tests with mocked dependencies
+- `test_workflow_supabase_integration.py`: Supabase integration tests
+- `test_workflow_validation.py`: Workflow validation tests
+
+## Future Enhancements
+
+- [ ] Support for iterative workflows and sub-workflows
+- [ ] Enhanced parallel execution capabilities
+- [ ] Additional storage backend implementations
+- [ ] Improved error recovery and retry mechanisms
+- [ ] Real-time workflow monitoring
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+## License
+
+[MIT License](LICENSE)
+
+## About
+
+This workflow engine is developed and maintained by [Adanomad Consulting](https://adanomad.com) and powers the workflow functionality in [Aceteam.ai](https://aceteam.ai). For commercial support or consulting, please contact us at [contact@adanomad.com](mailto:contact@adanomad.com).
