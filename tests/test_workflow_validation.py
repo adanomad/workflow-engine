@@ -1,6 +1,6 @@
 # tests/test_workflow_validation.py
-from pydantic import ValidationError
 import pytest
+from pydantic import ValidationError
 
 from workflow_engine.core import Data, Edge, Params
 from workflow_engine.nodes import (
@@ -20,42 +20,54 @@ from workflow_engine.nodes import (
 
 @pytest.mark.unit
 def test_default_parameters():
-    params = WriteJSONParams.model_validate({
-        "file_name": "out.json",
-    })
+    params = WriteJSONParams.model_validate(
+        {
+            "file_name": "out.json",
+        }
+    )
     assert params.indent == 0
 
 
 @pytest.mark.unit
 def test_extra_parameters():
     # Params is the only type that can have extra parameters
-    params = Params.model_validate({
-        "something": "else",
-    })
+    params = Params.model_validate(
+        {
+            "something": "else",
+        }
+    )
     assert params.model_extra == {"something": "else"}
 
     # these will not successfully deserialize due to extra parameters
     with pytest.raises(ValidationError):
-        Data.model_validate({
-            "something": "else",
-        })
+        Data.model_validate(
+            {
+                "something": "else",
+            }
+        )
     with pytest.raises(ValidationError):
-        ConstantBool.model_validate({
-            "value": True,
-            "something": "else",
-        })
+        ConstantBool.model_validate(
+            {
+                "value": True,
+                "something": "else",
+            }
+        )
     with pytest.raises(ValidationError):
-        ConstantBoolNode.model_validate({
-            "id": "1",
-            "params": {"value": True},
-            "something": "else",
-        })
+        ConstantBoolNode.model_validate(
+            {
+                "id": "1",
+                "params": {"value": True},
+                "something": "else",
+            }
+        )
 
 
 @pytest.mark.unit
 def test_edge_validation():
     write_node = WriteJSONNode(id="write", params=WriteJSONParams(file_name="out.json"))
-    append_node = AppendToFileNode(id="append", params=AppendToFileParams(suffix=".json"))
+    append_node = AppendToFileNode(
+        id="append", params=AppendToFileParams(suffix=".json")
+    )
 
     # validate that a JSON file can be passed as a Text file
     Edge.from_nodes(
@@ -79,7 +91,9 @@ def test_generic_edge_validation():
     factorization_node = FactorizationNode(id="factorization")
     sum_node = SumNode(id="sum")
     read_node = ReadJSONLinesNode(id="read")
-    write_node = WriteJSONLinesNode(id="write", params=WriteJSONLinesParams(file_name="out.json"))
+    write_node = WriteJSONLinesNode(
+        id="write", params=WriteJSONLinesParams(file_name="out.json")
+    )
 
     # list[int] -> list[int]
     Edge.from_nodes(

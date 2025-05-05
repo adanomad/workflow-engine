@@ -3,7 +3,8 @@
 Simple nodes for testing the workflow engine, with limited usefulness otherwise.
 """
 
-from typing import Literal, Sequence
+from collections.abc import Sequence
+from typing import Literal
 
 from ..core import Context, Data, Empty, Node, Params
 
@@ -12,8 +13,10 @@ class AddNodeInput(Data):
     a: int
     b: int
 
+
 class SumOutput(Data):
     sum: int
+
 
 class AddNode(Node[AddNodeInput, SumOutput, Empty]):
     type: Literal["Add"] = "Add"
@@ -33,8 +36,10 @@ class AddNode(Node[AddNodeInput, SumOutput, Empty]):
 class SumNodeInput(Data):
     values: Sequence[int]
 
+
 class SumNodeOutput(Data):
     sum: int
+
 
 class SumNode(Node[SumNodeInput, SumNodeOutput, Empty]):
     type: Literal["Sum"] = "Sum"
@@ -54,8 +59,10 @@ class SumNode(Node[SumNodeInput, SumNodeOutput, Empty]):
 class IntData(Data):
     value: int
 
+
 class FactorizationData(Data):
     factors: Sequence[int]
+
 
 class FactorizationNode(Node[IntData, FactorizationData, Params]):
     type: Literal["Factorization"] = "Factorization"
@@ -70,10 +77,9 @@ class FactorizationNode(Node[IntData, FactorizationData, Params]):
 
     def __call__(self, context: Context, input: IntData) -> FactorizationData:
         if input.value > 0:
-            return FactorizationData(factors=[
-                i for i in range(1, input.value+1)
-                if input.value % i == 0
-            ])
+            return FactorizationData(
+                factors=[i for i in range(1, input.value + 1) if input.value % i == 0]
+            )
         raise ValueError("Can only factorize positive integers")
 
 

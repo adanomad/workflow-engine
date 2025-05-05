@@ -1,12 +1,11 @@
 # examples/append.py
-from src.workflow_engine.core import TextFile
-
+from workflow_engine.contexts.supabase import SupabaseContext
+from workflow_engine.core import InputEdge, OutputEdge, TextFile, Workflow
+from workflow_engine.execution.topological import TopologicalExecutionAlgorithm
+from workflow_engine.nodes import AppendToFileNode, AppendToFileParams
 
 # ==============================================================================
 # WORKFLOW
-
-from src.workflow_engine.nodes import AppendToFileNode, AppendToFileParams
-from src.workflow_engine.core import InputEdge, OutputEdge, Workflow
 
 workflow = Workflow(
     nodes=[
@@ -37,7 +36,6 @@ assert Workflow.model_validate_json(workflow_json) == workflow
 
 run_id = "22222222-2222-2222-2222-222222222227"
 
-from src.workflow_engine.contexts.supabase import SupabaseContext
 context = SupabaseContext(
     run_id=run_id,
     user_id="9dd979c4-6426-40ca-bcaf-7a7f03d550d4",
@@ -48,7 +46,7 @@ context = SupabaseContext(
 # ==============================================================================
 # ALGORITHMS
 
-from src.workflow_engine.execution.topological import TopologicalExecutionAlgorithm
+
 algorithm = TopologicalExecutionAlgorithm()
 
 

@@ -1,43 +1,29 @@
 # workflow_engine/__init__.py
 
-from .workflow import WorkflowExecutor, WorkflowExecutionError
-
-from .types import (
-    Node,
+from .core import (
+    Context,
+    Data,
     Edge,
-    WorkflowGraph,
+    Empty,
+    ExecutionAlgorithm,
     File,
-    FileExecutionData,
-    NodeInputData,
-    NodeOutputData,
-    WorkflowRunResults,
+    InputEdge,
+    Node,
+    OutputEdge,
+    Params,
+    Workflow,
 )
 
-from .registry import registry, FunctionRegistry, FunctionMetadata, ParameterMetadata
-
-from . import resolvers
-from . import functions
-
 __all__ = [
-    # Core Classes
-    "WorkflowExecutor",
-    "WorkflowExecutionError",
-    # Core Types
-    "Node",
+    "Context",
+    "Data",
     "Edge",
-    "WorkflowGraph",
+    "Empty",
+    "ExecutionAlgorithm",
     "File",
-    "FileExecutionData",
-    "NodeInputData",
-    "NodeOutputData",
-    "WorkflowRunResults",
-    "Json",
-    # Registry
-    "registry",
-    "FunctionRegistry",
-    "FunctionMetadata",
-    "ParameterMetadata",
-    # Sub-packages
-    "resolvers",
-    "functions",
+    "InputEdge",
+    "Node",
+    "OutputEdge",
+    "Params",
+    "Workflow",
 ]

@@ -1,5 +1,6 @@
 # workflow_engine/nodes/json.py
-from typing import Any, Literal, Sequence
+from collections.abc import Sequence
+from typing import Any, Literal
 
 from ..core import (
     Context,
@@ -15,13 +16,16 @@ from ..core import (
 class JSONData(Data):
     data: Any
 
+
 class JSONFileData(Data):
     file: JSONFile
+
 
 class ReadJSONNode(Node[JSONFileData, JSONData, Empty]):
     """
     Reads a JSON file into a JSON object.
     """
+
     type: Literal["ReadJSON"] = "ReadJSON"
 
     @property
@@ -35,14 +39,17 @@ class ReadJSONNode(Node[JSONFileData, JSONData, Empty]):
     def __call__(self, context: Context, input: JSONFileData) -> JSONData:
         return JSONData(data=input.file.read_data(context))
 
+
 class WriteJSONParams(Params):
     file_name: str
-    indent: int = 0 # default: no indentation
+    indent: int = 0  # default: no indentation
+
 
 class WriteJSONNode(Node[JSONData, JSONFileData, WriteJSONParams]):
     """
     Saves its input as a JSON file.
     """
+
     type: Literal["WriteJSON"] = "WriteJSON"
 
     @property
@@ -62,13 +69,16 @@ class WriteJSONNode(Node[JSONData, JSONFileData, WriteJSONParams]):
 class JSONLinesData(Data):
     data: Sequence[Any]
 
+
 class JSONLinesFileData(Data):
     file: JSONLinesFile
+
 
 class ReadJSONLinesNode(Node[JSONLinesFileData, JSONLinesData, Empty]):
     """
     Reads a JSONLines file into a list of Any.
     """
+
     type: Literal["ReadJSONLines"] = "ReadJSONLines"
 
     @property
@@ -87,10 +97,12 @@ class WriteJSONLinesParams(Params):
     file_name: str
     # no indent allowed for JSON lines
 
+
 class WriteJSONLinesNode(Node[JSONLinesData, JSONLinesFileData, WriteJSONLinesParams]):
     """
     Saves its input as a JSONLines file.
     """
+
     type: Literal["WriteJSONLines"] = "WriteJSONLines"
 
     @property

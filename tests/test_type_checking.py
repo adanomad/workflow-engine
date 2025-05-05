@@ -1,10 +1,12 @@
 # tests/test_type_checking.py
 from enum import Enum
-from typing import Any, Optional, TypeVar, Union, Literal, Generic
-from pydantic import BaseModel
-import pytest
+from typing import Any, Generic, Literal, Optional, TypeVar, Union
 
-from workflow_engine.utils.assign import is_assignable, expand_type
+import pytest
+from pydantic import BaseModel
+
+from workflow_engine.utils.assign import is_assignable
+
 
 # Test fixtures
 class Color(Enum):
@@ -12,30 +14,39 @@ class Color(Enum):
     GREEN = "green"
     BLUE = "blue"
 
+
 class Animal:
     pass
+
 
 class Dog(Animal):
     pass
 
+
 class Cat(Animal):
     pass
+
 
 class SimpleModel(BaseModel):
     name: str
     age: int
 
+
 class NestedModel(BaseModel):
     simple: SimpleModel
     color: Color
 
+
 class GenericModel(BaseModel):
     value: Any
 
-T = TypeVar('T')
+
+T = TypeVar("T")
+
 
 class GenericClass(Generic[T]):
     pass
+
 
 @pytest.mark.unit
 def test_basic_types():
@@ -47,6 +58,7 @@ def test_basic_types():
     assert is_assignable(Dog, Animal)
     assert not is_assignable(Animal, Dog)
 
+
 @pytest.mark.unit
 def test_none_and_any():
     assert is_assignable(None, None)
@@ -57,6 +69,7 @@ def test_none_and_any():
     assert is_assignable(str, Any)
     assert is_assignable(list[int], Any)
 
+
 @pytest.mark.unit
 def test_literals():
     assert is_assignable(Literal[1], int)
@@ -65,6 +78,7 @@ def test_literals():
     assert not is_assignable(Literal[1], str)
     assert not is_assignable(Literal["hello"], int)
 
+
 @pytest.mark.unit
 def test_enums():
     assert is_assignable(Color, Enum)
@@ -72,12 +86,14 @@ def test_enums():
     assert not is_assignable(Color, int)
     assert not is_assignable(int, Color)
 
+
 @pytest.mark.unit
 def test_optional():
     assert is_assignable(Optional[int], Union[int, None])
     assert is_assignable(int, Optional[int])
     assert is_assignable(None, Optional[int])
     assert not is_assignable(Optional[int], int)
+
 
 @pytest.mark.unit
 def test_unions():
@@ -94,12 +110,14 @@ def test_unions():
     assert is_assignable(list[int], list[int] | list[str])
     assert not is_assignable(list[float], list[int] | list[str])
 
+
 @pytest.mark.unit
 def test_pydantic_models():
     assert is_assignable(SimpleModel, BaseModel)
     assert is_assignable(NestedModel, BaseModel)
     assert not is_assignable(SimpleModel, NestedModel)
     assert not is_assignable(NestedModel, SimpleModel)
+
 
 @pytest.mark.unit
 def test_generic_types():
@@ -120,6 +138,7 @@ def test_generic_types():
     assert is_assignable(GenericClass[int], GenericClass[int])
     assert not is_assignable(GenericClass[int], GenericClass[str])
 
+
 @pytest.mark.unit
 def test_nested_generics():
     assert is_assignable(list[list[int]], list[list[int]])
@@ -127,16 +146,21 @@ def test_nested_generics():
     assert not is_assignable(list[list[int]], list[list[str]])
     assert not is_assignable(dict[str, list[int]], dict[str, list[str]])
 
+
 @pytest.mark.unit
 def test_complex_nested_types():
     complex_type = dict[str, list[Optional[Union[int, str]]]]
     assert is_assignable(complex_type, complex_type)
-    assert is_assignable(dict[str, list[Optional[Union[int, str]]]], dict[str, list[Any]], covariant=True)
+    assert is_assignable(
+        dict[str, list[Optional[Union[int, str]]]], dict[str, list[Any]], covariant=True
+    )
     assert not is_assignable(complex_type, dict[str, list[int]])
+
 
 @pytest.mark.unit
 def test_pydantic_with_generics():
     assert is_assignable(GenericModel, BaseModel)
+
 
 @pytest.mark.unit
 def test_edge_cases():
@@ -152,6 +176,7 @@ def test_edge_cases():
     assert is_assignable(list[Any], list[Any])
     assert is_assignable(dict[Any, Any], dict[Any, Any])
 
+
 @pytest.mark.unit
 def test_covariant_behavior():
     # list is covariant in its type parameter
@@ -163,4 +188,6 @@ def test_covariant_behavior():
     # workflow_engine, this assumption is actually very reasonable.
     assert is_assignable(dict[str, int], dict[str, Union[int, float]], covariant=True)
     assert is_assignable(dict[str, int], dict[Union[str, bytes], int], covariant=True)
-    assert is_assignable(dict[str, int], dict[Union[str, bytes], Union[int, float]], covariant=True)
+    assert is_assignable(
+        dict[str, int], dict[Union[str, bytes], Union[int, float]], covariant=True
+    )

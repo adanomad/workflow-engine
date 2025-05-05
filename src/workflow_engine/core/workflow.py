@@ -1,10 +1,11 @@
 # workflow_engine/core/workflow.py
+from collections.abc import Mapping, Sequence
 from functools import cached_property
 from itertools import chain
-from typing import Any, Mapping, Sequence, Type
+from typing import Any, Type
 
-from pydantic import BaseModel, ConfigDict, model_validator
 import networkx as nx
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from .data import Data
 from .edge import Edge, InputEdge, OutputEdge
@@ -39,21 +40,27 @@ class Workflow(BaseModel):
         }
         for edge in chain(self.edges, self.input_edges):
             if edge.target_key in edges_by_target[edge.target_id]:
-                raise ValueError(f"In-edge to {edge.target_id}.{edge.target_key} is already in the graph")
+                raise ValueError(
+                    f"In-edge to {edge.target_id}.{edge.target_key} is already in the graph"
+                )
             edges_by_target[edge.target_id][edge.target_key] = edge
         return edges_by_target
 
     @cached_property
     def input_fields(self) -> Mapping[str, Type[Any]]:
         return {
-            edge.source_key: self.nodes_by_id[edge.source_id].output_fields[edge.source_key][0]
+            edge.source_key: self.nodes_by_id[edge.source_id].output_fields[
+                edge.source_key
+            ][0]
             for edge in self.edges
         }
 
     @cached_property
     def output_fields(self) -> Mapping[str, Type[Any]]:
         return {
-            edge.target_key: self.nodes_by_id[edge.target_id].input_fields[edge.target_key][0]
+            edge.target_key: self.nodes_by_id[edge.target_id].input_fields[
+                edge.target_key
+            ][0]
             for edge in self.edges
         }
 
@@ -95,10 +102,10 @@ class Workflow(BaseModel):
         return self
 
     def get_ready_nodes(
-            self,
-            input: Mapping[str, Any],
-            node_outputs: Mapping[str, Data] | None = None,
-            partial_results: Mapping[str, Data] | None = None,
+        self,
+        input: Mapping[str, Any],
+        node_outputs: Mapping[str, Data] | None = None,
+        partial_results: Mapping[str, Data] | None = None,
     ) -> Mapping[str, Data]:
         """
         Given the input and the set of nodes which have already finished, return
@@ -112,7 +119,9 @@ class Workflow(BaseModel):
         if node_outputs is None:
             node_outputs = {}
 
-        ready_nodes: dict[str, Data] = {} if partial_results is None else dict(partial_results)
+        ready_nodes: dict[str, Data] = (
+            {} if partial_results is None else dict(partial_results)
+        )
         for node in self.nodes:
             # remove the node if it is now finished
             if node.id in node_outputs:
@@ -130,7 +139,9 @@ class Workflow(BaseModel):
                 if isinstance(edge, InputEdge):
                     node_input_dict[target_key] = input[edge.input_key]
                 elif edge.source_id in node_outputs:
-                    node_input_dict[target_key] = getattr(node_outputs[edge.source_id], edge.source_key)
+                    node_input_dict[target_key] = getattr(
+                        node_outputs[edge.source_id], edge.source_key
+                    )
                 else:
                     ready = False
                     break
@@ -141,8 +152,8 @@ class Workflow(BaseModel):
         return ready_nodes
 
     def get_output(
-            self,
-            node_outputs: Mapping[str, Data],
+        self,
+        node_outputs: Mapping[str, Data],
     ) -> Mapping[str, Any]:
         output: dict[str, Any] = {}
         for edge in self.output_edges:

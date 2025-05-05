@@ -3,21 +3,21 @@ from enum import Enum
 from types import NoneType, UnionType
 from typing import (
     Any,
-    cast,
-    get_args,
-    get_origin,
     Literal,
     Optional,
     TypeAlias,
     Union,
+    cast,
+    get_args,
+    get_origin,
 )
 
 from .iter import only
 
-
 LiteralType: TypeAlias = int | bool | str | bytes | Enum | NoneType
 
 ExpandedType: TypeAlias = tuple[bool, Any]
+
 
 def expand_type(t: Any) -> list[ExpandedType]:
     """
@@ -30,7 +30,7 @@ def expand_type(t: Any) -> list[ExpandedType]:
         # it's more useful to have None than NoneType since None can be checked
         # for equality with literals
         return [(True, None)]
-    if t is Any: # resolve the horribly wrong Any = object() type alias
+    if t is Any:  # resolve the horribly wrong Any = object() type alias
         return [(False, object)]
 
     if (origin := get_origin(t)) is not None:
@@ -45,8 +45,8 @@ def expand_type(t: Any) -> list[ExpandedType]:
 
 
 def safe_issubclass(
-        source: Any,
-        target: Any,
+    source: Any,
+    target: Any,
 ) -> bool:
     try:
         return issubclass(cast(type, source), cast(type, target))
@@ -55,9 +55,9 @@ def safe_issubclass(
 
 
 def is_assignable_expanded(
-        expanded_source: ExpandedType,
-        expanded_target: ExpandedType,
-        covariant: bool = False,
+    expanded_source: ExpandedType,
+    expanded_target: ExpandedType,
+    covariant: bool = False,
 ) -> bool:
     """
     Check if a source object or type is assignable to a target object or type.
@@ -119,10 +119,10 @@ def is_assignable_expanded(
 
 
 def is_assignable(
-        source: Any,
-        target: Any,
-        *,
-        covariant: bool = False,
+    source: Any,
+    target: Any,
+    *,
+    covariant: bool = False,
 ) -> bool:
     """
     Check if a source object or type is assignable to a target object or type.
@@ -144,10 +144,7 @@ def is_assignable(
     target_expanded = expand_type(target)
 
     return all(
-        any(
-            is_assignable_expanded(s, t, covariant=covariant)
-            for t in target_expanded
-        )
+        any(is_assignable_expanded(s, t, covariant=covariant) for t in target_expanded)
         for s in source_expanded
     )
 

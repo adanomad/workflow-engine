@@ -1,9 +1,11 @@
 # workflow_engine/core/context.py
 from abc import ABC, abstractmethod
-from typing import Any, TYPE_CHECKING, TypeVar, Mapping
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from .data import Data
 from .file import File
+
 if TYPE_CHECKING:
     from .node import Node
     from .workflow import Workflow
@@ -17,32 +19,33 @@ class Context(ABC):
     Represents the environment in which a workflow is executed.
     A context's life is limited to the execution of a single workflow.
     """
+
     def __init__(
-            self,
-            run_id: str,
+        self,
+        run_id: str,
     ):
         self.run_id = run_id
 
     @abstractmethod
     def read(
-            self,
-            file: File,
+        self,
+        file: File,
     ) -> bytes:
         raise NotImplementedError("Subclasses must implement this method")
 
     @abstractmethod
     def write(
-            self,
-            file: F,
-            content: bytes,
+        self,
+        file: F,
+        content: bytes,
     ) -> F:
         raise NotImplementedError("Subclasses must implement this method")
 
     def on_workflow_start(
-            self,
-            *,
-            workflow: "Workflow",
-            input: Mapping[str, Any],
+        self,
+        *,
+        workflow: "Workflow",
+        input: Mapping[str, Any],
     ) -> Mapping[str, Any] | None:
         """
         A hook that is called when a workflow starts execution.
@@ -53,10 +56,10 @@ class Context(ABC):
         pass
 
     def on_node_start(
-            self,
-            *,
-            node: "Node",
-            input: Data,
+        self,
+        *,
+        node: "Node",
+        input: Data,
     ) -> Data | None:
         """
         A hook that is called when a node starts execution.
@@ -67,11 +70,11 @@ class Context(ABC):
         pass
 
     def on_node_finish(
-            self,
-            *,
-            node: "Node",
-            input: Data,
-            output: Data,
+        self,
+        *,
+        node: "Node",
+        input: Data,
+        output: Data,
     ) -> Data:
         """
         A hook that is called when a node finishes execution.
@@ -79,11 +82,11 @@ class Context(ABC):
         return output
 
     def on_workflow_finish(
-            self,
-            *,
-            workflow: "Workflow",
-            input: Mapping[str, Any],
-            output: Mapping[str, Any],
+        self,
+        *,
+        workflow: "Workflow",
+        input: Mapping[str, Any],
+        output: Mapping[str, Any],
     ) -> Mapping[str, Any]:
         """
         A hook that is called when a workflow finishes execution.

@@ -3,10 +3,9 @@ from .context import Context
 from .data import Data
 from .edge import Edge, InputEdge, OutputEdge
 from .execution import ExecutionAlgorithm
-from .file import File, TextFile, JSONFile, JSONLinesFile
+from .file import File, JSONFile, JSONLinesFile, TextFile
 from .node import Empty, Node, Params
 from .workflow import Workflow
-
 
 __all__ = [
     "Context",

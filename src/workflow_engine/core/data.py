@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 class Data(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
+
 Input = TypeVar("Input", bound=Data)
 Input_contra = TypeVar("Input_contra", bound=Data, contravariant=True)
 

@@ -1,12 +1,13 @@
 # workflow_engine/contexts/local.py
 import json
 import os
-from typing import Any, Mapping, TypeVar
+import uuid
+from collections.abc import Mapping
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
 from ..core import Context, Data, File, Node, Workflow
-
 
 F = TypeVar("F", bound=File)
 
@@ -15,12 +16,15 @@ class LocalContext(Context):
     """
     A context that uses the local filesystem to store files.
     """
+
     def __init__(
-            self,
-            run_id: str,
-            *,
-            base_dir: str = "./local",
+        self,
+        run_id: str | None = None,
+        *,
+        base_dir: str = "./local",
     ):
+        if run_id is None:
+            run_id = str(uuid.uuid4())
         super().__init__(run_id)
         self.run_dir = os.path.join(base_dir, self.run_id)
         os.makedirs(self.run_dir, exist_ok=True)
@@ -62,17 +66,17 @@ class LocalContext(Context):
         return os.path.join(self.output_dir, f"{node_id}.json")
 
     def read(
-            self,
-            file: File,
+        self,
+        file: File,
     ) -> bytes:
         path = self.get_file_path(file.path)
         with open(path, "rb") as f:
             return f.read()
 
     def write(
-            self,
-            file: F,
-            content: bytes,
+        self,
+        file: F,
+        content: bytes,
     ) -> F:
         path = self.get_file_path(file.path)
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -81,10 +85,10 @@ class LocalContext(Context):
         return file
 
     def on_workflow_start(
-            self,
-            *,
-            workflow: Workflow,
-            input: Mapping[str, Any],
+        self,
+        *,
+        workflow: Workflow,
+        input: Mapping[str, Any],
     ) -> Mapping[str, Any] | None:
         """
         Triggered when a workflow is started.
@@ -93,10 +97,12 @@ class LocalContext(Context):
         """
         self._idempotent_write(
             path=self.workflow_input_path,
-            data=json.dumps({
-                k: v.model_dump() if isinstance(v, BaseModel) else v
-                for k, v in input.items()
-            }),
+            data=json.dumps(
+                {
+                    k: v.model_dump() if isinstance(v, BaseModel) else v
+                    for k, v in input.items()
+                }
+            ),
         )
 
         self._idempotent_write(
@@ -113,10 +119,10 @@ class LocalContext(Context):
         return None
 
     def on_node_start(
-            self,
-            *,
-            node: Node,
-            input: Data,
+        self,
+        *,
+        node: Node,
+        input: Data,
     ) -> Data | None:
         self._idempotent_write(
             path=self.get_node_input_path(node.id),
@@ -126,16 +132,16 @@ class LocalContext(Context):
         output_path = self.get_node_output_path(node.id)
         if os.path.exists(output_path):
             with open(output_path, "r") as f:
-                output = node.output_type.model_validate_json(f.read()) # type: ignore
+                output = node.output_type.model_validate_json(f.read())  # type: ignore
             return output
         return None
 
     def on_node_finish(
-            self,
-            *,
-            node: Node,
-            input: Data,
-            output: Data,
+        self,
+        *,
+        node: Node,
+        input: Data,
+        output: Data,
     ) -> Data:
         self._idempotent_write(
             path=self.get_node_output_path(node.id),
@@ -144,11 +150,11 @@ class LocalContext(Context):
         return output
 
     def on_workflow_finish(
-            self,
-            *,
-            workflow: Workflow,
-            input: Mapping[str, Any],
-            output: Mapping[str, Any],
+        self,
+        *,
+        workflow: Workflow,
+        input: Mapping[str, Any],
+        output: Mapping[str, Any],
     ) -> Mapping[str, Any]:
         self._idempotent_write(
             path=self.workflow_output_path,

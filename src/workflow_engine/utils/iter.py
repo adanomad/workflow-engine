@@ -1,11 +1,12 @@
 # workflow_engine/utils/iter.py
-from typing import Sequence, TypeVar
-
+from collections.abc import Iterable
+from typing import TypeVar
 
 T = TypeVar("T")
 
-def only(it: Sequence[T]) -> T:
-    x, = iter(it)
+
+def only(it: Iterable[T]) -> T:
+    (x,) = iter(it)
     return x
 
 
