@@ -154,9 +154,12 @@ class Workflow(BaseModel):
     def get_output(
         self,
         node_outputs: Mapping[str, Data],
+        partial: bool = False,
     ) -> Mapping[str, Any]:
         output: dict[str, Any] = {}
         for edge in self.output_edges:
+            if partial and edge.source_id not in node_outputs:
+                continue
             output_field = getattr(node_outputs[edge.source_id], edge.source_key)
             if isinstance(output_field, BaseModel):
                 output_field = output_field.model_dump()

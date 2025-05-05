@@ -12,6 +12,10 @@ from .constant import (
     ConstantString,
     ConstantStringNode,
 )
+from .error import (
+    ErrorNode,
+    ErrorParams,
+)
 from .json import (
     ReadJSONLinesNode,
     ReadJSONNode,
@@ -36,6 +40,8 @@ __all__ = [
     "ConstantIntNode",
     "ConstantString",
     "ConstantStringNode",
+    "ErrorNode",
+    "ErrorParams",
     "FactorizationNode",
     "ReadJSONLinesNode",
     "ReadJSONNode",

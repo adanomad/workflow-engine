@@ -43,6 +43,7 @@ Check the `examples` directory for more sample workflows:
 
 - [`addition.py/json`](./examples/addition.py): basic arithmetic operations
 - [`append.py/json`](./examples/append.py): text file manipulation
+- [`error.py/json`](./examples/error.py): graceful error handling
 
 ## Key Features
 

@@ -65,6 +65,18 @@ class Edge(BaseModel):
             )
 
 
+class SynchronizationEdge(BaseModel):
+    """
+    An edge that carries no information, but indicates that the target node must
+    run after the source node finishes.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    source_id: str
+    target_id: str
+
+
 class InputEdge(BaseModel):
     """
     An "edge" that maps a field from the workflow's input to the input of a
@@ -161,4 +173,5 @@ __all__ = [
     "Edge",
     "InputEdge",
     "OutputEdge",
+    "SynchronizationEdge",
 ]

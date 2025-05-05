@@ -4,7 +4,15 @@ from typing import Any, TypeVar
 
 from supabase import create_client
 
-from ..core import Context, Data, File, Node, Workflow
+from ..core import (
+    Context,
+    Data,
+    File,
+    Node,
+    NodeExecutionError,
+    Workflow,
+    WorkflowExecutionError,
+)
 from ..utils.env import get_env
 from ..utils.iter import only
 from ..utils.uuid import is_valid_uuid
@@ -143,36 +151,6 @@ class SupabaseContext(Context):
         )
         return file.write_metadata("file_id", file_id)
 
-    def on_workflow_start(
-        self,
-        *,
-        workflow: Workflow,
-        input: Mapping[str, Any],
-    ) -> Mapping[str, Any] | None:
-        """
-        A hook that is called when a workflow starts execution.
-
-        If the context already knows what the workflow's output will be, return
-        that output to skip workflow execution.
-        """
-        response = self.workflow_runs_table.select("*").eq("id", self.run_id).execute()
-        if len(response.data) > 0:
-            output = only(response.data)["output"]
-            if output is not None:
-                return output
-
-        self.workflow_runs_table.upsert(
-            {
-                "id": self.run_id,
-                "workflow_id": self.workflow_version_id,
-                "input": input,
-                "started_at": "now()",
-                "output": None,
-                "finished_at": None,
-            }
-        ).execute()
-        return None
-
     def on_node_start(
         self,
         *,
@@ -208,6 +186,29 @@ class SupabaseContext(Context):
         ).execute()
         return None
 
+    def on_node_error(
+        self,
+        *,
+        node: "Node",
+        input: Data,
+        error: NodeExecutionError,
+    ) -> NodeExecutionError:
+        """
+        A hook that is called when a node finishes execution.
+        """
+        (
+            self.workflow_node_runs_table.update(
+                {
+                    "error": error.model_dump(),
+                    "finished_at": "now()",
+                }
+            )
+            .eq("workflow_run_id", self.run_id)
+            .eq("node_id", node.id)
+            .execute()
+        )
+        return error
+
     def on_node_finish(
         self,
         *,
@@ -230,6 +231,57 @@ class SupabaseContext(Context):
             .execute()
         )
         return output
+
+    def on_workflow_start(
+        self,
+        *,
+        workflow: Workflow,
+        input: Mapping[str, Any],
+    ) -> Mapping[str, Any] | None:
+        """
+        A hook that is called when a workflow starts execution.
+
+        If the context already knows what the workflow's output will be, return
+        that output to skip workflow execution.
+        """
+        response = self.workflow_runs_table.select("*").eq("id", self.run_id).execute()
+        if len(response.data) > 0:
+            output = only(response.data)["output"]
+            if output is not None:
+                return output
+
+        self.workflow_runs_table.upsert(
+            {
+                "id": self.run_id,
+                "workflow_id": self.workflow_version_id,
+                "input": input,
+                "started_at": "now()",
+                "output": None,
+                "finished_at": None,
+            }
+        ).execute()
+        return None
+
+    def on_workflow_error(
+        self,
+        *,
+        workflow: "Workflow",
+        input: Mapping[str, Any],
+        error: WorkflowExecutionError,
+    ) -> WorkflowExecutionError:
+        error_json = error.model_dump()
+        (
+            self.workflow_runs_table.update(
+                {
+                    "error": error_json["node_errors"],
+                    "output": error_json["partial_output"],
+                    "finished_at": "now()",
+                }
+            )
+            .eq("id", self.run_id)
+            .execute()
+        )
+        return error
 
     def on_workflow_finish(
         self,
