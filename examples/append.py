@@ -1,6 +1,12 @@
 # examples/append.py
 from workflow_engine.contexts.supabase import SupabaseContext
-from workflow_engine.core import InputEdge, OutputEdge, TextFile, Workflow
+from workflow_engine import (
+    InputEdge,
+    OutputEdge,
+    Workflow,
+    WorkflowExecutionError,
+)
+from workflow_engine.core import TextFile
 from workflow_engine.execution.topological import TopologicalExecutionAlgorithm
 from workflow_engine.nodes import AppendToFileNode, AppendToFileParams
 
@@ -71,6 +77,7 @@ output = algorithm.execute(
     workflow=workflow,
     input=input,
 )
+assert not isinstance(output, WorkflowExecutionError)
 print(output)
 
 output_file = TextFile.model_validate(output["file"])

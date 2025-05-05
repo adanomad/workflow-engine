@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from .context import Context
+from .error import WorkflowExecutionError
 from .workflow import Workflow
 
 
@@ -21,7 +22,7 @@ class ExecutionAlgorithm(ABC):
         context: Context,
         workflow: Workflow,
         input: Mapping[str, Any],
-    ) -> Mapping[str, Any]:
+    ) -> Mapping[str, Any] | WorkflowExecutionError:
         pass
 
 

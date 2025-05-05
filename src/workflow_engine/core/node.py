@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 from .context import Context
 from .data import Data, Input_contra, Output_co
+from .error import NodeExecutionError
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +126,11 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
         return self
 
     # @abstractmethod
-    def __call__(self, context: Context, input: Input_contra) -> Output_co:
+    def __call__(
+        self,
+        context: Context,
+        input: Input_contra,
+    ) -> Output_co | NodeExecutionError:
         raise NotImplementedError("Subclasses must implement this method")
 
 

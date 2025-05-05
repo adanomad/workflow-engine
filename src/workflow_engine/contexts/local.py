@@ -84,6 +84,37 @@ class LocalContext(Context):
             f.write(content)
         return file
 
+    def on_node_start(
+        self,
+        *,
+        node: Node,
+        input: Data,
+    ) -> Data | None:
+        self._idempotent_write(
+            path=self.get_node_input_path(node.id),
+            data=input.model_dump_json(),
+        )
+
+        output_path = self.get_node_output_path(node.id)
+        if os.path.exists(output_path):
+            with open(output_path, "r") as f:
+                output = node.output_type.model_validate_json(f.read())  # type: ignore
+            return output
+        return None
+
+    def on_node_finish(
+        self,
+        *,
+        node: Node,
+        input: Data,
+        output: Data,
+    ) -> Data:
+        self._idempotent_write(
+            path=self.get_node_output_path(node.id),
+            data=output.model_dump_json(),
+        )
+        return output
+
     def on_workflow_start(
         self,
         *,
@@ -117,37 +148,6 @@ class LocalContext(Context):
             assert isinstance(output, dict)
             return output
         return None
-
-    def on_node_start(
-        self,
-        *,
-        node: Node,
-        input: Data,
-    ) -> Data | None:
-        self._idempotent_write(
-            path=self.get_node_input_path(node.id),
-            data=input.model_dump_json(),
-        )
-
-        output_path = self.get_node_output_path(node.id)
-        if os.path.exists(output_path):
-            with open(output_path, "r") as f:
-                output = node.output_type.model_validate_json(f.read())  # type: ignore
-            return output
-        return None
-
-    def on_node_finish(
-        self,
-        *,
-        node: Node,
-        input: Data,
-        output: Data,
-    ) -> Data:
-        self._idempotent_write(
-            path=self.get_node_output_path(node.id),
-            data=output.model_dump_json(),
-        )
-        return output
 
     def on_workflow_finish(
         self,

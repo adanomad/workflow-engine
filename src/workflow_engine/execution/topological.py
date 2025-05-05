@@ -4,7 +4,14 @@ from typing import Any
 
 from overrides import override
 
-from ..core import Context, Data, ExecutionAlgorithm, Workflow
+from ..core import (
+    Context,
+    Data,
+    ExecutionAlgorithm,
+    NodeExecutionError,
+    Workflow,
+    WorkflowExecutionError,
+)
 
 
 class TopologicalExecutionAlgorithm(ExecutionAlgorithm):
@@ -20,7 +27,7 @@ class TopologicalExecutionAlgorithm(ExecutionAlgorithm):
         context: Context,
         workflow: Workflow,
         input: Mapping[str, Any],
-    ) -> Mapping[str, Any]:
+    ) -> Mapping[str, Any] | WorkflowExecutionError:
         context.on_workflow_start(workflow=workflow, input=input)
 
         node_outputs: Mapping[str, Data] = {}
@@ -32,9 +39,24 @@ class TopologicalExecutionAlgorithm(ExecutionAlgorithm):
             node_output = context.on_node_start(node=node, input=node_input)
             if node_output is None:
                 node_output = node(context, node_input)
-                node_output = context.on_node_finish(
-                    node=node, input=node_input, output=node_output
-                )
+                if isinstance(node_output, NodeExecutionError):
+                    node_output = context.on_node_error(
+                        node=node, input=node_input, error=node_output
+                    )
+                    workflow_error = WorkflowExecutionError(
+                        node_errors={node_id: node_output},
+                        partial_output=workflow.get_output(node_outputs, partial=True),
+                    )
+                    workflow_error = context.on_workflow_error(
+                        workflow=workflow,
+                        input=input,
+                        error=workflow_error,
+                    )
+                    return workflow_error
+                else:
+                    node_output = context.on_node_finish(
+                        node=node, input=node_input, output=node_output
+                    )
             node_outputs[node.id] = node_output
             ready_nodes = dict(
                 workflow.get_ready_nodes(

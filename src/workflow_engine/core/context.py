@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, TypeVar
 
 from .data import Data
+from .error import NodeExecutionError, WorkflowExecutionError
 from .file import File
 
 if TYPE_CHECKING:
@@ -41,20 +42,6 @@ class Context(ABC):
     ) -> F:
         raise NotImplementedError("Subclasses must implement this method")
 
-    def on_workflow_start(
-        self,
-        *,
-        workflow: "Workflow",
-        input: Mapping[str, Any],
-    ) -> Mapping[str, Any] | None:
-        """
-        A hook that is called when a workflow starts execution.
-
-        If the context already knows what the workflow's output will be, return
-        that output to skip workflow execution.
-        """
-        pass
-
     def on_node_start(
         self,
         *,
@@ -67,7 +54,21 @@ class Context(ABC):
         If the context already knows what the node's output will be, return that
         output to skip node execution.
         """
-        pass
+        return None
+
+    def on_node_error(
+        self,
+        *,
+        node: "Node",
+        input: Data,
+        error: NodeExecutionError,
+    ) -> NodeExecutionError:
+        """
+        A hook that is called when a node raises an error.
+        The context can modify the error message by returning a different
+        NodeExecutionError.
+        """
+        return error
 
     def on_node_finish(
         self,
@@ -80,6 +81,34 @@ class Context(ABC):
         A hook that is called when a node finishes execution.
         """
         return output
+
+    def on_workflow_start(
+        self,
+        *,
+        workflow: "Workflow",
+        input: Mapping[str, Any],
+    ) -> Mapping[str, Any] | None:
+        """
+        A hook that is called when a workflow starts execution.
+
+        If the context already knows what the workflow's output will be, return
+        that output to skip workflow execution.
+        """
+        return None
+
+    def on_workflow_error(
+        self,
+        *,
+        workflow: "Workflow",
+        input: Mapping[str, Any],
+        error: WorkflowExecutionError,
+    ) -> WorkflowExecutionError:
+        """
+        A hook that is called when a workflow raises an error.
+        The context can modify the error message by returning a different
+        WorkflowExecutionError.
+        """
+        return error
 
     def on_workflow_finish(
         self,
