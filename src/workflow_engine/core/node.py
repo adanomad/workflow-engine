@@ -1,4 +1,5 @@
 # workflow_engine/core/node.py
+import logging
 import re
 from collections.abc import Mapping
 from typing import (
@@ -12,10 +13,11 @@ from typing import (
 
 from overrides import final
 from pydantic import BaseModel, ConfigDict, model_validator
-from pydantic._internal._model_construction import ModelMetaclass
 
 from .context import Context
 from .data import Data, Input_contra, Output_co
+
+logger = logging.getLogger(__name__)
 
 
 def get_fields(cls: type[BaseModel]) -> Mapping[str, tuple[type[Any], bool]]:
@@ -138,7 +140,7 @@ class NodeRegistry:
                 f'Node type "{type}" is already registered to a different class'
             )
         self.types[type] = cls
-        print(f"Registering class {cls.__name__} as node type {type}")
+        logger.info("Registering class %s as node type %s", cls.__name__, type)
 
     def get(self, type: str) -> type["Node"]:
         if type not in self.types:
@@ -148,7 +150,7 @@ class NodeRegistry:
     def register_base(self, cls: type["Node"]):
         if cls not in self.base_classes:
             self.base_classes.append(cls)
-            print(f"Registering class {cls.__name__} as base node type")
+            logger.info("Registering class %s as base node type", cls.__name__)
 
     def is_base_class(self, cls: type["Node"]) -> bool:
         return cls in self.base_classes
