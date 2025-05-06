@@ -15,11 +15,14 @@ class AppendToFileInput(Data):
     file: TextFile
     text: str
 
+
 class AppendToFileOutput(Data):
     file: TextFile
 
+
 class AppendToFileParams(Params):
     suffix: str
+
 
 class AppendToFileNode(Node[AppendToFileInput, AppendToFileOutput, AppendToFileParams]):
     type: Literal["AppendToFile"] = "AppendToFile"
@@ -32,7 +35,9 @@ class AppendToFileNode(Node[AppendToFileInput, AppendToFileOutput, AppendToFileP
     def output_type(self):
         return AppendToFileOutput
 
-    def __call__(self, context: Context, input: AppendToFileInput) -> AppendToFileOutput:
+    def __call__(
+        self, context: Context, input: AppendToFileInput
+    ) -> AppendToFileOutput:
         old_text = input.file.read_text(context)
         new_text = old_text + input.text
         filename, ext = os.path.splitext(input.file.path)

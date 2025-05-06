@@ -20,22 +20,29 @@ pip install aceteam-workflow-engine  # TODO: Package name to be finalized
 ## Quick Start
 
 ```python
-from workflow_engine import WorkflowExecutor
-from workflow_engine.contexts import SupabaseContext
+from workflow_engine import Workflow
+import workflow_engine.nodes
+from workflow_engine.contexts import LocalContext
+from workflow_engine.execution import TopologicalExecutionAlgorithm
 
-# Initialize the workflow executor
-executor = WorkflowExecutor(context=SupabaseContext())
+context = LocalContext()
+algorithm = TopologicalExecutionAlgorithm()
 
 # Load and run a workflow
-workflow = executor.load_workflow("examples/addition.json")
-result = executor.execute(workflow, {"input": 5})
+with open("examples/addition.json") as f:
+    workflow = Workflow.model_validate_json(f.read())
+
+result = algorithm.execute(
+    context=context,
+    workflow=workflow,
+    input={"c": -256},
+) # {'sum': 1811}
 ```
 
 Check the `examples` directory for more sample workflows:
 
-- `addition.py/json`: Basic arithmetic operations
-- `append.py/json`: Text manipulation
-- `linear.py`: Linear workflow example
+- [`addition.py/json`](./examples/addition.py): basic arithmetic operations
+- [`append.py/json`](./examples/append.py): text file manipulation
 
 ## Key Features
 
@@ -64,30 +71,25 @@ Check the `examples` directory for more sample workflows:
 ```
 src/workflow_engine/
 ├── contexts/          # Storage backend implementations
-│   ├── in_memory.py  # In-memory storage
-│   ├── local.py      # Local file system storage
-│   └── supabase.py   # Supabase storage integration
-├── core/             # Core workflow components
-│   ├── context.py    # Execution context
-│   ├── data.py       # Data handling
-│   ├── edge.py       # Edge definitions
-│   ├── execution.py  # Execution logic
-│   ├── file.py       # File handling
-│   ├── node.py       # Node base classes
-│   └── workflow.py   # Workflow definitions
-├── execution/        # Execution strategies
+│   ├── in_memory.py   # In-memory storage
+│   ├── local.py       # Local file system storage
+│   └── supabase.py    # Supabase storage integration
+├── core/              # Core workflow components
+│   ├── context.py     # Execution context
+│   ├── data.py        # Data handling
+│   ├── edge.py        # Edge definitions
+│   ├── execution.py   # Execution logic
+│   ├── file.py        # File handling
+│   ├── node.py        # Node base classes
+│   └── workflow.py    # Workflow definitions
+├── execution/         # Execution strategies
 │   └── topological.py # DAG-based execution
-├── functions/        # Built-in functions
-├── nodes/           # Node implementations
-│   ├── arithmetic.py # Math operations
-│   ├── constant.py   # Constant values
-│   ├── json.py       # JSON operations
-│   └── text.py       # Text operations
-├── resolvers/        # Data resolution
-│   ├── base.py      # Base resolver interface
-│   ├── in_memory.py # In-memory resolver
-│   └── supabase.py  # Supabase resolver
-└── utils/           # Helper utilities
+├── nodes/             # Node implementations
+│   ├── arithmetic.py  # Math operations
+│   ├── constant.py    # Constant values
+│   ├── json.py        # JSON operations
+│   └── text.py        # Text operations
+└── utils/             # Helper utilities
 ```
 
 ## Development
@@ -118,8 +120,6 @@ poetry run pytest  # Runs both unit and integration tests
 Available test suites:
 
 - `test_type_checking.py`: Type system validation
-- `test_workflow_mock.py`: Unit tests with mocked dependencies
-- `test_workflow_supabase_integration.py`: Supabase integration tests
 - `test_workflow_validation.py`: Workflow validation tests
 
 ## Future Enhancements

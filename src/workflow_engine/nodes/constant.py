@@ -7,6 +7,7 @@ from ..core import Context, Data, Empty, Node, Params
 class ConstantBool(Params):
     value: bool
 
+
 class ConstantBoolNode(Node[Empty, ConstantBool, ConstantBool]):
     type: Literal["ConstantBool"] = "ConstantBool"
 
@@ -25,6 +26,7 @@ class ConstantBoolNode(Node[Empty, ConstantBool, ConstantBool]):
 class ConstantInt(Params):
     value: int
 
+
 class ConstantIntNode(Node[Empty, ConstantInt, ConstantInt]):
     type: Literal["ConstantInt"] = "ConstantInt"
 
@@ -42,6 +44,7 @@ class ConstantIntNode(Node[Empty, ConstantInt, ConstantInt]):
 
 class ConstantString(Params):
     value: str
+
 
 class ConstantStringNode(Node[Empty, ConstantString, ConstantString]):
     type: Literal["ConstantString"] = "ConstantString"

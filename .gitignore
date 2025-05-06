@@ -31,8 +31,6 @@ ENV/
 
 # IDE
 .idea/
-.vscode/
 
 # Output
 /local/
-/workflow_output/

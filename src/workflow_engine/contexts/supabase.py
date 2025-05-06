@@ -1,5 +1,6 @@
 # workflow_engine/contexts/supabase.py
-from typing import Any, Mapping, TypeVar
+from collections.abc import Mapping
+from typing import Any, TypeVar
 
 from supabase import create_client
 
@@ -7,7 +8,6 @@ from ..core import Context, Data, File, Node, Workflow
 from ..utils.env import get_env
 from ..utils.iter import only
 from ..utils.uuid import is_valid_uuid
-
 
 F = TypeVar("F", bound=File)
 
@@ -42,19 +42,20 @@ class SupabaseContext(Context):
     Parameters:
     - override_paths: a mapping from file paths to file IDs
     """
+
     def __init__(
-            self,
-            run_id: str,
-            *,
-            user_id: str,
-            workflow_version_id: str,
-            file_metadata_table: str = "document_info",
-            file_bucket: str = "documents_storage",
-            workflow_runs_table: str = "workflow_runs",
-            workflow_node_runs_table: str = "workflow_node_runs",
-            overwrites_allowed: bool = False,
-            supabase_url: str | None = None,
-            supabase_key: str | None = None,
+        self,
+        run_id: str,
+        *,
+        user_id: str,
+        workflow_version_id: str,
+        file_metadata_table: str = "document_info",
+        file_bucket: str = "documents_storage",
+        workflow_runs_table: str = "workflow_runs",
+        workflow_node_runs_table: str = "workflow_node_runs",
+        overwrites_allowed: bool = False,
+        supabase_url: str | None = None,
+        supabase_key: str | None = None,
     ):
         super().__init__(run_id=run_id)
 
@@ -108,8 +109,8 @@ class SupabaseContext(Context):
             return None
 
     def read(
-            self,
-            file: File,
+        self,
+        file: File,
     ) -> bytes:
         file_id = self.get_file_id(file)
         if file_id is None:
@@ -118,9 +119,9 @@ class SupabaseContext(Context):
         return content
 
     def write(
-            self,
-            file: F,
-            content: bytes,
+        self,
+        file: F,
+        content: bytes,
     ) -> F:
         insert_dict = {
             "user": self.user_id,
@@ -143,10 +144,10 @@ class SupabaseContext(Context):
         return file.write_metadata("file_id", file_id)
 
     def on_workflow_start(
-            self,
-            *,
-            workflow: Workflow,
-            input: Mapping[str, Any],
+        self,
+        *,
+        workflow: Workflow,
+        input: Mapping[str, Any],
     ) -> Mapping[str, Any] | None:
         """
         A hook that is called when a workflow starts execution.
@@ -154,32 +155,29 @@ class SupabaseContext(Context):
         If the context already knows what the workflow's output will be, return
         that output to skip workflow execution.
         """
-        response = (
-            self.workflow_runs_table
-                .select("*")
-                .eq("id", self.run_id)
-                .execute()
-        )
+        response = self.workflow_runs_table.select("*").eq("id", self.run_id).execute()
         if len(response.data) > 0:
             output = only(response.data)["output"]
             if output is not None:
                 return output
 
-        self.workflow_runs_table.upsert({
-            "id": self.run_id,
-            "workflow_id": self.workflow_version_id,
-            "input": input,
-            "started_at": "now()",
-            "output": None,
-            "finished_at": None,
-        }).execute()
+        self.workflow_runs_table.upsert(
+            {
+                "id": self.run_id,
+                "workflow_id": self.workflow_version_id,
+                "input": input,
+                "started_at": "now()",
+                "output": None,
+                "finished_at": None,
+            }
+        ).execute()
         return None
 
     def on_node_start(
-            self,
-            *,
-            node: Node,
-            input: Data,
+        self,
+        *,
+        node: Node,
+        input: Data,
     ) -> Data | None:
         """
         A hook that is called when a node starts execution.
@@ -188,67 +186,70 @@ class SupabaseContext(Context):
         output to skip node execution.
         """
         response = (
-            self.workflow_node_runs_table
-                .select("*")
-                .eq("workflow_run_id", self.run_id)
-                .eq("node_id", node.id)
-                .execute()
+            self.workflow_node_runs_table.select("*")
+            .eq("workflow_run_id", self.run_id)
+            .eq("node_id", node.id)
+            .execute()
         )
         if len(response.data) > 0:
             output = only(response.data)["output"]
             if output is not None:
                 return node.output_type.model_validate(output)
 
-        self.workflow_node_runs_table.upsert({
-            "workflow_run_id": self.run_id,
-            "node_id": node.id,
-            "input": input.model_dump(),
-            "started_at": "now()",
-            "output": None,
-            "finished_at": None,
-        }).execute()
+        self.workflow_node_runs_table.upsert(
+            {
+                "workflow_run_id": self.run_id,
+                "node_id": node.id,
+                "input": input.model_dump(),
+                "started_at": "now()",
+                "output": None,
+                "finished_at": None,
+            }
+        ).execute()
         return None
 
     def on_node_finish(
-            self,
-            *,
-            node: "Node",
-            input: Data,
-            output: Data,
+        self,
+        *,
+        node: "Node",
+        input: Data,
+        output: Data,
     ) -> Data:
         """
         A hook that is called when a node finishes execution.
         """
         (
-            self.workflow_node_runs_table
-                .update({
+            self.workflow_node_runs_table.update(
+                {
                     "output": output.model_dump(),
                     "finished_at": "now()",
-                })
-                .eq("workflow_run_id", self.run_id)
-                .eq("node_id", node.id)
-                .execute()
+                }
+            )
+            .eq("workflow_run_id", self.run_id)
+            .eq("node_id", node.id)
+            .execute()
         )
         return output
 
     def on_workflow_finish(
-            self,
-            *,
-            workflow: "Workflow",
-            input: Mapping[str, Any],
-            output: Mapping[str, Any],
+        self,
+        *,
+        workflow: "Workflow",
+        input: Mapping[str, Any],
+        output: Mapping[str, Any],
     ) -> Mapping[str, Any]:
         """
         A hook that is called when a workflow finishes execution.
         """
         (
-            self.workflow_runs_table
-                .update({
+            self.workflow_runs_table.update(
+                {
                     "output": output,
                     "finished_at": "now()",
-                })
-                .eq("id", self.run_id)
-                .execute()
+                }
+            )
+            .eq("id", self.run_id)
+            .execute()
         )
         return output
 

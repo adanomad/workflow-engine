@@ -1,8 +1,9 @@
 # workflow_engine/core/file.py
-from abc import ABC
 import datetime
 import json
-from typing import Any, ClassVar, Mapping, Sequence, TYPE_CHECKING, Self
+from abc import ABC
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -23,6 +24,7 @@ class File(BaseModel, ABC):
 
     A Context provides the actual implementation to read the file's contents.
     """
+
     model_config = ConfigDict(frozen=True, extra="forbid")
     metadata: Mapping[str, Any] = Field(default_factory=dict)
     mime_type: ClassVar[str]
@@ -57,6 +59,7 @@ class JSONFile(TextFile):
     """
     A file that contains a Python object serialized as JSON.
     """
+
     mime_type = "application/json"
 
     def read_data(self, context: "Context") -> Any:
@@ -71,6 +74,7 @@ class JSONLinesFile(TextFile):
     """
     A file that contains a list of Python objects serialized as JSON.
     """
+
     mime_type = "application/jsonl"
 
     def read_data(self, context: "Context") -> Sequence[Any]:
@@ -78,8 +82,7 @@ class JSONLinesFile(TextFile):
 
     def write_data(self, context: "Context", data: Sequence[Any]) -> Self:
         text = "\n".join(
-            json.dumps(item, default=custom_json_serializer)
-            for item in data
+            json.dumps(item, default=custom_json_serializer) for item in data
         )
         return self.write_text(context, text)
 
