@@ -9,11 +9,12 @@ from .core import (
     File,
     InputEdge,
     Node,
-    NodeExecutionError,
+    NodeException,
     OutputEdge,
     Params,
+    UserException,
     Workflow,
-    WorkflowExecutionError,
+    WorkflowErrors,
 )
 
 __all__ = [
@@ -25,9 +26,10 @@ __all__ = [
     "File",
     "InputEdge",
     "Node",
-    "NodeExecutionError",
+    "NodeException",
     "OutputEdge",
     "Params",
+    "UserException",
     "Workflow",
-    "WorkflowExecutionError",
+    "WorkflowErrors",
 ]

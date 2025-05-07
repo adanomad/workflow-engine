@@ -1,47 +1,92 @@
 # workflow_engine/core/error.py
 
-from collections.abc import Mapping
-from typing import Any
+from collections import defaultdict
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class NodeExecutionError(BaseModel):
+class UserException(RuntimeError):
     """
-    Any error message representing a problem that prevents the node from
-    producing results.
-    Note that this is not an exception class, and should not actually be raised.
-    Instead, nodes should "raise" this exception by returning this object.
+    Any exception that can be reported to the user.
 
-    Exceptions raised by nodes will not be handled gracefully.
+    The node ID does not need to be included in contexts where it can be
+    inferred (when the exception is raised from a node, or from a function
+    called by a node).
 
+    Usual usage:
     ```
     try:
-        ...
-    except SomeException as e:
-        return NodeExecutionError(...)
+        do_something_dangerous()
+    except AnticipatedException as e:
+        raise UserException("prepared message") from e
     ```
     """
 
-    model_config = ConfigDict(frozen=True)
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
 
-    node_id: str
-    message: str
 
-
-class WorkflowExecutionError(BaseModel):
+class NodeException(RuntimeError):
     """
-    Any error message representing a problem that prevents the workflow from
-    producing full results.
+    An exception that occured during the execution of a node.
     """
 
-    model_config = ConfigDict(frozen=True)
+    def __init__(self, node_id: str):
+        super().__init__()
+        self.node_id = node_id
 
-    node_errors: Mapping[str, NodeExecutionError]
-    partial_output: Mapping[str, Any]
+    @property
+    def message(self) -> str | None:
+        if isinstance(self.__cause__, UserException):
+            return self.__cause__.message
+        return None
+
+
+class WorkflowErrors(BaseModel):
+    """
+    An error object that accumulates the errors that occurred during the
+    execution of a workflow.
+
+    None represents an error that is not user-visible.
+
+    workflow_errors contains errors which cannot be associated with a node.
+    node_errors contains errors which can be associated with a node.
+    """
+
+    model_config = ConfigDict(frozen=True)
+    workflow_errors: list[str | None] = Field(default_factory=list)
+    node_errors: dict[str, list[str | None]] = Field(
+        default_factory=lambda: defaultdict(list)
+    )
+
+    def add(self, exception: Exception):
+        if isinstance(exception, NodeException):
+            node_id = exception.node_id
+            message = exception.message
+        else:
+            node_id = None
+            if isinstance(exception, UserException):
+                message = exception.message
+            else:
+                message = None
+        if node_id is None:
+            self.workflow_errors.append(message)
+        else:
+            self.node_errors[node_id].append(message)
+
+    @property
+    def count(self) -> int:
+        return len(self.workflow_errors) + sum(
+            len(errors) for errors in self.node_errors.values()
+        )
+
+    def __bool__(self) -> bool:
+        return self.count > 0
 
 
 __all__ = [
-    "NodeExecutionError",
-    "WorkflowExecutionError",
+    "UserException",
+    "NodeException",
+    "WorkflowErrors",
 ]

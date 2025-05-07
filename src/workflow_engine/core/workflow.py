@@ -5,10 +5,10 @@ from itertools import chain
 from typing import Any, Type
 
 import networkx as nx
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, model_validator, ValidationError
 
-from .data import Data
 from .edge import Edge, InputEdge, OutputEdge
+from .error import UserException
 from .node import Node
 
 
@@ -104,9 +104,9 @@ class Workflow(BaseModel):
     def get_ready_nodes(
         self,
         input: Mapping[str, Any],
-        node_outputs: Mapping[str, Data] | None = None,
-        partial_results: Mapping[str, Data] | None = None,
-    ) -> Mapping[str, Data]:
+        node_outputs: Mapping[str, Mapping[str, Any]] | None = None,
+        partial_results: Mapping[str, Mapping[str, Any]] | None = None,
+    ) -> Mapping[str, Mapping[str, Any]]:
         """
         Given the input and the set of nodes which have already finished, return
         the nodes that are now ready to be executed and their arguments.
@@ -119,7 +119,7 @@ class Workflow(BaseModel):
         if node_outputs is None:
             node_outputs = {}
 
-        ready_nodes: dict[str, Data] = (
+        ready_nodes: dict[str, Mapping[str, Any]] = (
             {} if partial_results is None else dict(partial_results)
         )
         for node in self.nodes:
@@ -136,11 +136,12 @@ class Workflow(BaseModel):
             ready: bool = True
             node_input_dict: dict[str, Any] = {}
             for target_key, edge in self.edges_by_target[node.id].items():
+                # if the input is missing, we will let the node figure it out
                 if isinstance(edge, InputEdge):
-                    node_input_dict[target_key] = input[edge.input_key]
+                    node_input_dict[target_key] = input.get(edge.input_key)
                 elif edge.source_id in node_outputs:
-                    node_input_dict[target_key] = getattr(
-                        node_outputs[edge.source_id], edge.source_key
+                    node_input_dict[target_key] = node_outputs[edge.source_id].get(
+                        edge.source_key
                     )
                 else:
                     ready = False
@@ -148,21 +149,42 @@ class Workflow(BaseModel):
             if not ready:
                 continue
 
-            ready_nodes[node.id] = node.input_type.model_validate(node_input_dict)
+            try:
+                ready_nodes[node.id] = node_input_dict
+            except ValidationError as e:
+                raise UserException(
+                    f"Input {node_input_dict} for node {node.id} is invalid: {e}",
+                )
         return ready_nodes
 
     def get_output(
         self,
-        node_outputs: Mapping[str, Data],
+        node_outputs: Mapping[str, Mapping[str, Any]],
         partial: bool = False,
     ) -> Mapping[str, Any]:
+        """
+        Get the output of the workflow.
+
+        If partial is True, this method should never raise an exception, and the
+        output will only include nodes that have been executed, for which the
+        output field is available.
+        """
         output: dict[str, Any] = {}
         for edge in self.output_edges:
-            if partial and edge.source_id not in node_outputs:
-                continue
-            output_field = getattr(node_outputs[edge.source_id], edge.source_key)
-            if isinstance(output_field, BaseModel):
-                output_field = output_field.model_dump()
+            if edge.source_id not in node_outputs:
+                if partial:
+                    continue
+                raise UserException(
+                    f"Cannot get output from node {edge.source_id}.",
+                )
+            node_output = node_outputs[edge.source_id]
+            if edge.source_key not in node_output:
+                if partial:
+                    continue
+                raise UserException(
+                    f"Cannot get output from node {edge.source_id} at key '{edge.source_key}'.",
+                )
+            output_field = node_output[edge.source_key]
             output[edge.output_key] = output_field
         return output
 

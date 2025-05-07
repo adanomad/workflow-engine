@@ -59,9 +59,10 @@ algorithm = TopologicalExecutionAlgorithm()
 # ==============================================================================
 # EXECUTION
 
-output = algorithm.execute(
+errors, output = algorithm.execute(
     context=context,
     workflow=workflow,
     input={"c": -256},
 )
+assert not errors
 assert output == {"sum": 42 + 2025 - 256}

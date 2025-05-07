@@ -36,7 +36,7 @@ class ReadJSONNode(Node[JSONFileData, JSONData, Empty]):
     def output_type(self):
         return JSONData
 
-    def __call__(self, context: Context, input: JSONFileData) -> JSONData:
+    def run(self, context: Context, input: JSONFileData) -> JSONData:
         return JSONData(data=input.file.read_data(context))
 
 
@@ -60,7 +60,7 @@ class WriteJSONNode(Node[JSONData, JSONFileData, WriteJSONParams]):
     def output_type(self):
         return JSONFileData
 
-    def __call__(self, context: Context, input: JSONData) -> JSONFileData:
+    def run(self, context: Context, input: JSONData) -> JSONFileData:
         file = JSONFile(path=self.params.file_name)
         file = file.write_data(context, input.data)
         return JSONFileData(file=file)
@@ -89,7 +89,7 @@ class ReadJSONLinesNode(Node[JSONLinesFileData, JSONLinesData, Empty]):
     def output_type(self):
         return JSONLinesData
 
-    def __call__(self, context: Context, input: JSONLinesFileData) -> JSONLinesData:
+    def run(self, context: Context, input: JSONLinesFileData) -> JSONLinesData:
         return JSONLinesData(data=input.file.read_data(context))
 
 
@@ -113,7 +113,7 @@ class WriteJSONLinesNode(Node[JSONLinesData, JSONLinesFileData, WriteJSONLinesPa
     def output_type(self):
         return JSONLinesFileData
 
-    def __call__(self, context: Context, input: JSONLinesData) -> JSONLinesFileData:
+    def run(self, context: Context, input: JSONLinesData) -> JSONLinesFileData:
         file = JSONLinesFile(path=self.params.file_name)
         file = file.write_data(context, input.data)
         return JSONLinesFileData(file=file)

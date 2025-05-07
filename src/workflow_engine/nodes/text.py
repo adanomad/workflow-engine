@@ -35,9 +35,7 @@ class AppendToFileNode(Node[AppendToFileInput, AppendToFileOutput, AppendToFileP
     def output_type(self):
         return AppendToFileOutput
 
-    def __call__(
-        self, context: Context, input: AppendToFileInput
-    ) -> AppendToFileOutput:
+    def run(self, context: Context, input: AppendToFileInput) -> AppendToFileOutput:
         old_text = input.file.read_text(context)
         new_text = old_text + input.text
         filename, ext = os.path.splitext(input.file.path)
