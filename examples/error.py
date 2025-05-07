@@ -2,10 +2,9 @@
 from workflow_engine.contexts.supabase import SupabaseContext
 from workflow_engine import (
     Edge,
-    NodeExecutionError,
     OutputEdge,
     Workflow,
-    WorkflowExecutionError,
+    WorkflowErrors,
 )
 from workflow_engine.execution.topological import TopologicalExecutionAlgorithm
 from workflow_engine.nodes import (
@@ -55,7 +54,7 @@ assert Workflow.model_validate_json(workflow_json) == workflow
 # ==============================================================================
 # CONTEXT
 
-run_id = "33333333-3333-3333-3333-000000000002"
+run_id = "33333333-3333-3333-3333-000000000006"
 
 context = SupabaseContext(
     run_id=run_id,
@@ -74,18 +73,15 @@ algorithm = TopologicalExecutionAlgorithm()
 # ==============================================================================
 # EXECUTION
 
-output = algorithm.execute(
+errors, output = algorithm.execute(
     context=context,
     workflow=workflow,
     input={},
 )
-print(output)
-assert output == WorkflowExecutionError(
-    node_errors={
-        error.id: NodeExecutionError(
-            node_id=error.id,
-            message="RuntimeError: workflow-engine",
-        )
-    },
-    partial_output={"text": "workflow-engine"},
+print("Errors:", errors)
+print("Output:", output)
+assert errors == WorkflowErrors(
+    workflow_errors=[],
+    node_errors={error.id: ["RuntimeError: workflow-engine"]},
 )
+assert output == {"text": "workflow-engine"}

@@ -4,15 +4,7 @@ from typing import Any, TypeVar
 
 from supabase import create_client
 
-from ..core import (
-    Context,
-    Data,
-    File,
-    Node,
-    NodeExecutionError,
-    Workflow,
-    WorkflowExecutionError,
-)
+from ..core import Context, File, Node, UserException, Workflow, WorkflowErrors
 from ..utils.env import get_env
 from ..utils.iter import only
 from ..utils.uuid import is_valid_uuid
@@ -122,8 +114,11 @@ class SupabaseContext(Context):
     ) -> bytes:
         file_id = self.get_file_id(file)
         if file_id is None:
-            raise ValueError(f"File {file.path} not found")
-        content = self.file_bucket.download(f"{self.user_id}/{file_id}")
+            raise UserException(f"File {file.path} not found")
+        try:
+            content = self.file_bucket.download(f"{self.user_id}/{file_id}")
+        except Exception as e:
+            raise UserException(f"Failed to read file {file.path}") from e
         return content
 
     def write(
@@ -139,24 +134,32 @@ class SupabaseContext(Context):
         }
         if (file_id := self.get_file_id(file)) is not None:
             insert_dict["id"] = file_id
-        response = self.file_metadata_table.insert(insert_dict).execute()
-        file_id = only(response.data)["id"]
-        self.file_bucket.upload(
-            path=f"{self.user_id}/{file_id}",
-            file=content,
-            file_options={
-                "content-type": file.mime_type,
-                "upsert": "true" if self.overwrites_allowed else "false",
-            },
-        )
+        try:
+            response = self.file_metadata_table.insert(insert_dict).execute()
+            file_id = only(response.data)["id"]
+        except Exception as e:
+            raise UserException(
+                f"Failed to create file metadata for {file.path}"
+            ) from e
+        try:
+            self.file_bucket.upload(
+                path=f"{self.user_id}/{file_id}",
+                file=content,
+                file_options={
+                    "content-type": file.mime_type,
+                    "upsert": "true" if self.overwrites_allowed else "false",
+                },
+            )
+        except Exception as e:
+            raise UserException(f"Failed to write file {file.path}") from e
         return file.write_metadata("file_id", file_id)
 
     def on_node_start(
         self,
         *,
         node: Node,
-        input: Data,
-    ) -> Data | None:
+        input: Mapping[str, Any],
+    ) -> Mapping[str, Any] | None:
         """
         A hook that is called when a node starts execution.
 
@@ -178,7 +181,7 @@ class SupabaseContext(Context):
             {
                 "workflow_run_id": self.run_id,
                 "node_id": node.id,
-                "input": input.model_dump(),
+                "input": input,
                 "started_at": "now()",
                 "output": None,
                 "finished_at": None,
@@ -190,16 +193,21 @@ class SupabaseContext(Context):
         self,
         *,
         node: "Node",
-        input: Data,
-        error: NodeExecutionError,
-    ) -> NodeExecutionError:
+        input: Mapping[str, Any],
+        exception: Exception,
+    ) -> Exception | Mapping[str, Any]:
         """
         A hook that is called when a node finishes execution.
         """
+        persisted_exception = (
+            {"message": exception.message}
+            if isinstance(exception, UserException)
+            else {}
+        )
         (
             self.workflow_node_runs_table.update(
                 {
-                    "error": error.model_dump(),
+                    "error": persisted_exception,
                     "finished_at": "now()",
                 }
             )
@@ -207,22 +215,22 @@ class SupabaseContext(Context):
             .eq("node_id", node.id)
             .execute()
         )
-        return error
+        return exception
 
     def on_node_finish(
         self,
         *,
         node: "Node",
-        input: Data,
-        output: Data,
-    ) -> Data:
+        input: Mapping[str, Any],
+        output: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
         """
         A hook that is called when a node finishes execution.
         """
         (
             self.workflow_node_runs_table.update(
                 {
-                    "output": output.model_dump(),
+                    "output": output,
                     "finished_at": "now()",
                 }
             )
@@ -237,18 +245,28 @@ class SupabaseContext(Context):
         *,
         workflow: Workflow,
         input: Mapping[str, Any],
-    ) -> Mapping[str, Any] | None:
+    ) -> tuple[WorkflowErrors, Mapping[str, Any]] | None:
         """
         A hook that is called when a workflow starts execution.
 
         If the context already knows what the workflow's output will be, return
         that output to skip workflow execution.
         """
-        response = self.workflow_runs_table.select("*").eq("id", self.run_id).execute()
+        response = (
+            self.workflow_runs_table.select("error", "output")
+            .eq("id", self.run_id)
+            .not_.is_("output", None)
+            .execute()
+        )
         if len(response.data) > 0:
+            error = only(response.data)["error"]
             output = only(response.data)["output"]
-            if output is not None:
-                return output
+            assert isinstance(output, dict)
+            if error is None:
+                errors = WorkflowErrors()
+            else:
+                errors = WorkflowErrors.model_validate(error)
+            return errors, output
 
         self.workflow_runs_table.upsert(
             {
@@ -267,21 +285,21 @@ class SupabaseContext(Context):
         *,
         workflow: "Workflow",
         input: Mapping[str, Any],
-        error: WorkflowExecutionError,
-    ) -> WorkflowExecutionError:
-        error_json = error.model_dump()
+        errors: WorkflowErrors,
+        partial_output: Mapping[str, Any],
+    ) -> tuple[WorkflowErrors, Mapping[str, Any]]:
         (
             self.workflow_runs_table.update(
                 {
-                    "error": error_json["node_errors"],
-                    "output": error_json["partial_output"],
+                    "error": errors.model_dump(),
+                    "output": partial_output,
                     "finished_at": "now()",
                 }
             )
             .eq("id", self.run_id)
             .execute()
         )
-        return error
+        return errors, partial_output
 
     def on_workflow_finish(
         self,

@@ -3,6 +3,7 @@ import logging
 import re
 from collections.abc import Mapping
 from typing import (
+    TYPE_CHECKING,
     Any,
     Generic,
     Type,
@@ -12,11 +13,12 @@ from typing import (
 )
 
 from overrides import final
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
-from .context import Context
+if TYPE_CHECKING:
+    from .context import Context
 from .data import Data, Input_contra, Output_co
-from .error import NodeExecutionError
+from .error import NodeException, UserException
 
 logger = logging.getLogger(__name__)
 
@@ -125,12 +127,43 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
             return cls.model_validate(self.model_dump())
         return self
 
-    # @abstractmethod
+    @final
     def __call__(
         self,
-        context: Context,
-        input: Input_contra,
-    ) -> Output_co | NodeExecutionError:
+        context: "Context",
+        input: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
+        try:
+            logger.info("Starting node %s", self.id)
+            output = context.on_node_start(node=self, input=input)
+            if output is not None:
+                return output
+            try:
+                input_obj = self.input_type.model_validate(input)
+            except ValidationError as e:
+                raise UserException(
+                    f"Input {input} for node {self.id} is invalid: {e}",
+                )
+            output_obj = self.run(context, input_obj)
+            output = output_obj.model_dump()
+            output = context.on_node_finish(node=self, input=input, output=output)
+            logger.info("Finished node %s", self.id)
+            return output
+        except Exception as e:
+            # In subclasses, you don't have to worry about logging the error,
+            # since it'll be logged here.
+            logger.exception("Error in node %s: %s", self.id, e)
+            e = context.on_node_error(node=self, input=input, exception=e)
+            if isinstance(e, Mapping):
+                logger.exception(
+                    "Error absorbed by context and replaced with output %s", e
+                )
+                return e
+            else:
+                raise NodeException(self.id) from e
+
+    # @abstractmethod
+    def run(self, context: "Context", input: Input_contra) -> Output_co:
         raise NotImplementedError("Subclasses must implement this method")
 
 

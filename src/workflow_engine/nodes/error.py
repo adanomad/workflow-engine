@@ -7,8 +7,8 @@ from ..core import (
     Data,
     Empty,
     Node,
-    NodeExecutionError,
     Params,
+    UserException,
 )
 
 
@@ -31,11 +31,8 @@ class ErrorNode(Node[ErrorInput, Empty, ErrorParams]):
     def input_type(self):
         return ErrorInput
 
-    def __call__(self, context: Context, input: ErrorInput) -> NodeExecutionError:
-        return NodeExecutionError(
-            node_id=self.id,
-            message=f"{self.params.error_name}: {input.info}",
-        )
+    def run(self, context: Context, input: ErrorInput) -> Empty:
+        raise UserException(f"{self.params.error_name}: {input.info}")
 
     @classmethod
     def from_name(cls, node_id: str, name: str) -> "ErrorNode":

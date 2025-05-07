@@ -4,7 +4,6 @@ from workflow_engine import (
     InputEdge,
     OutputEdge,
     Workflow,
-    WorkflowExecutionError,
 )
 from workflow_engine.core import TextFile
 from workflow_engine.execution.topological import TopologicalExecutionAlgorithm
@@ -72,12 +71,12 @@ input = {
 input_file = TextFile.model_validate(input["file"])
 input_text = input_file.read_text(context)
 
-output = algorithm.execute(
+errors, output = algorithm.execute(
     context=context,
     workflow=workflow,
     input=input,
 )
-assert not isinstance(output, WorkflowExecutionError)
+assert not errors
 print(output)
 
 output_file = TextFile.model_validate(output["file"])

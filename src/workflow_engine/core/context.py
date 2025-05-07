@@ -1,15 +1,12 @@
 # workflow_engine/core/context.py
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 
-from .data import Data
-from .error import NodeExecutionError, WorkflowExecutionError
 from .file import File
-
-if TYPE_CHECKING:
-    from .node import Node
-    from .workflow import Workflow
+from .error import WorkflowErrors
+from .node import Node
+from .workflow import Workflow
 
 
 F = TypeVar("F", bound=File)
@@ -46,8 +43,8 @@ class Context(ABC):
         self,
         *,
         node: "Node",
-        input: Data,
-    ) -> Data | None:
+        input: Mapping[str, Any],
+    ) -> Mapping[str, Any] | None:
         """
         A hook that is called when a node starts execution.
 
@@ -60,23 +57,23 @@ class Context(ABC):
         self,
         *,
         node: "Node",
-        input: Data,
-        error: NodeExecutionError,
-    ) -> NodeExecutionError:
+        input: Mapping[str, Any],
+        exception: Exception,
+    ) -> Exception | Mapping[str, Any]:
         """
         A hook that is called when a node raises an error.
-        The context can modify the error message by returning a different
-        NodeExecutionError.
+        The context can modify the error by returning a different Exception, or
+        it can silence the error by returning an output.
         """
-        return error
+        return exception
 
     def on_node_finish(
         self,
         *,
         node: "Node",
-        input: Data,
-        output: Data,
-    ) -> Data:
+        input: Mapping[str, Any],
+        output: Mapping[str, Any],
+    ) -> Mapping[str, Any]:
         """
         A hook that is called when a node finishes execution.
         """
@@ -87,7 +84,7 @@ class Context(ABC):
         *,
         workflow: "Workflow",
         input: Mapping[str, Any],
-    ) -> Mapping[str, Any] | None:
+    ) -> tuple[WorkflowErrors, Mapping[str, Any]] | None:
         """
         A hook that is called when a workflow starts execution.
 
@@ -101,14 +98,15 @@ class Context(ABC):
         *,
         workflow: "Workflow",
         input: Mapping[str, Any],
-        error: WorkflowExecutionError,
-    ) -> WorkflowExecutionError:
+        errors: WorkflowErrors,
+        partial_output: Mapping[str, Any],
+    ) -> tuple[WorkflowErrors, Mapping[str, Any]]:
         """
         A hook that is called when a workflow raises an error.
-        The context can modify the error message by returning a different
-        WorkflowExecutionError.
+        The context can modify the errors or partial output by returning a
+        different tuple.
         """
-        return error
+        return errors, partial_output
 
     def on_workflow_finish(
         self,

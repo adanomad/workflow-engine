@@ -4,14 +4,7 @@ from typing import Any
 
 from overrides import override
 
-from ..core import (
-    Context,
-    Data,
-    ExecutionAlgorithm,
-    NodeExecutionError,
-    Workflow,
-    WorkflowExecutionError,
-)
+from ..core import Context, ExecutionAlgorithm, Workflow, WorkflowErrors
 
 
 class TopologicalExecutionAlgorithm(ExecutionAlgorithm):
@@ -27,55 +20,51 @@ class TopologicalExecutionAlgorithm(ExecutionAlgorithm):
         context: Context,
         workflow: Workflow,
         input: Mapping[str, Any],
-    ) -> Mapping[str, Any] | WorkflowExecutionError:
-        context.on_workflow_start(workflow=workflow, input=input)
+    ) -> tuple[WorkflowErrors, Mapping[str, Any]]:
+        result = context.on_workflow_start(workflow=workflow, input=input)
+        if result is not None:
+            # TODO: maybe retry workflows that have failed
+            return result
 
-        node_outputs: Mapping[str, Data] = {}
-        ready_nodes = dict(workflow.get_ready_nodes(input=input))
-        while len(ready_nodes) > 0:
-            node_id, node_input = ready_nodes.popitem()
-            node = workflow.nodes_by_id[node_id]
+        node_outputs: Mapping[str, Mapping[str, Any]] = {}
+        errors = WorkflowErrors()
 
-            node_output = context.on_node_start(node=node, input=node_input)
-            if node_output is None:
-                node_output = node(context, node_input)
-                if isinstance(node_output, NodeExecutionError):
-                    node_output = context.on_node_error(
-                        node=node, input=node_input, error=node_output
-                    )
-                    workflow_error = WorkflowExecutionError(
-                        node_errors={node_id: node_output},
-                        partial_output=workflow.get_output(node_outputs, partial=True),
-                    )
-                    workflow_error = context.on_workflow_error(
-                        workflow=workflow,
+        try:
+            ready_nodes = dict(workflow.get_ready_nodes(input=input))
+            while len(ready_nodes) > 0:
+                node_id, node_input = ready_nodes.popitem()
+                node = workflow.nodes_by_id[node_id]
+
+                node_outputs[node.id] = node(context, node_input)
+                ready_nodes = dict(
+                    workflow.get_ready_nodes(
                         input=input,
-                        error=workflow_error,
+                        node_outputs=node_outputs,
+                        partial_results=ready_nodes,
                     )
-                    return workflow_error
-                else:
-                    node_output = context.on_node_finish(
-                        node=node, input=node_input, output=node_output
-                    )
-            node_outputs[node.id] = node_output
-            ready_nodes = dict(
-                workflow.get_ready_nodes(
-                    input=input,
-                    node_outputs=node_outputs,
-                    partial_results=ready_nodes,
                 )
-            )
 
-        output = workflow.get_output(node_outputs)
+            output = workflow.get_output(node_outputs)
+        except Exception as e:
+            errors.add(e)
+            partial_output = workflow.get_output(node_outputs, partial=True)
+            errors, partial_output = context.on_workflow_error(
+                workflow=workflow,
+                input=input,
+                errors=errors,
+                partial_output=partial_output,
+            )
+            return errors, partial_output
+
         output = context.on_workflow_finish(
             workflow=workflow,
             input=input,
             output=output,
         )
 
-        return output
+        return errors, output
 
 
 __all__ = [
-    "ExecutionAlgorithm",
+    "TopologicalExecutionAlgorithm",
 ]
