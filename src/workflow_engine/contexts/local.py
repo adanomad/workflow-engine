@@ -7,7 +7,7 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
-from workflow_engine.core.error import WorkflowErrors
+from workflow_engine.core.error import UserException, WorkflowErrors
 
 from ..core import Context, File, Node, Workflow
 
@@ -79,8 +79,13 @@ class LocalContext(Context):
         file: File,
     ) -> bytes:
         path = self.get_file_path(file.path)
-        with open(path, "rb") as f:
-            return f.read()
+        if not os.path.exists(path):
+            raise UserException(f"File {file.path} not found")
+        try:
+            with open(path, "rb") as f:
+                return f.read()
+        except Exception as e:
+            raise UserException(f"Failed to read file {file.path}") from e
 
     def write(
         self,
@@ -89,8 +94,11 @@ class LocalContext(Context):
     ) -> F:
         path = self.get_file_path(file.path)
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "wb") as f:
-            f.write(content)
+        try:
+            with open(path, "wb") as f:
+                f.write(content)
+        except Exception as e:
+            raise UserException(f"Failed to write file {file.path}") from e
         return file
 
     def on_node_start(

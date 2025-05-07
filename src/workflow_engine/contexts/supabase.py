@@ -134,16 +134,24 @@ class SupabaseContext(Context):
         }
         if (file_id := self.get_file_id(file)) is not None:
             insert_dict["id"] = file_id
-        response = self.file_metadata_table.insert(insert_dict).execute()
-        file_id = only(response.data)["id"]
-        self.file_bucket.upload(
-            path=f"{self.user_id}/{file_id}",
-            file=content,
-            file_options={
-                "content-type": file.mime_type,
-                "upsert": "true" if self.overwrites_allowed else "false",
-            },
-        )
+        try:
+            response = self.file_metadata_table.insert(insert_dict).execute()
+            file_id = only(response.data)["id"]
+        except Exception as e:
+            raise UserException(
+                f"Failed to create file metadata for {file.path}"
+            ) from e
+        try:
+            self.file_bucket.upload(
+                path=f"{self.user_id}/{file_id}",
+                file=content,
+                file_options={
+                    "content-type": file.mime_type,
+                    "upsert": "true" if self.overwrites_allowed else "false",
+                },
+            )
+        except Exception as e:
+            raise UserException(f"Failed to write file {file.path}") from e
         return file.write_metadata("file_id", file_id)
 
     def on_node_start(
