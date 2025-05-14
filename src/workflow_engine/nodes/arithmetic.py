@@ -29,7 +29,7 @@ class AddNode(Node[AddNodeInput, SumOutput, Empty]):
     def output_type(self):
         return SumOutput
 
-    def run(self, context: Context, input: AddNodeInput) -> SumOutput:
+    async def run(self, context: Context, input: AddNodeInput) -> SumOutput:
         return SumOutput(sum=input.a + input.b)
 
 
@@ -52,7 +52,7 @@ class SumNode(Node[SumNodeInput, SumNodeOutput, Empty]):
     def output_type(self):
         return SumNodeOutput
 
-    def run(self, context: Context, input: SumNodeInput) -> SumNodeOutput:
+    async def run(self, context: Context, input: SumNodeInput) -> SumNodeOutput:
         return SumNodeOutput(sum=sum(input.values))
 
 
@@ -75,7 +75,7 @@ class FactorizationNode(Node[IntData, FactorizationData, Params]):
     def output_type(self):
         return FactorizationData
 
-    def run(self, context: Context, input: IntData) -> FactorizationData:
+    async def run(self, context: Context, input: IntData) -> FactorizationData:
         if input.value > 0:
             return FactorizationData(
                 factors=[i for i in range(1, input.value + 1) if input.value % i == 0]

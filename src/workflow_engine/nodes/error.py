@@ -31,7 +31,7 @@ class ErrorNode(Node[ErrorInput, Empty, ErrorParams]):
     def input_type(self):
         return ErrorInput
 
-    def run(self, context: Context, input: ErrorInput) -> Empty:
+    async def run(self, context: Context, input: ErrorInput) -> Empty:
         raise UserException(f"{self.params.error_name}: {input.info}")
 
     @classmethod

@@ -17,7 +17,7 @@ The Workflow Engine enables you to:
 pip install aceteam-workflow-engine  # TODO: Package name to be finalized
 ```
 
-## Quick Start
+## Example
 
 ```python
 from workflow_engine import Workflow

@@ -1,7 +1,6 @@
 # workflow_engine/contexts/local.py
 import json
 import os
-import uuid
 from collections.abc import Mapping
 from typing import Any, TypeVar
 
@@ -21,13 +20,11 @@ class LocalContext(Context):
 
     def __init__(
         self,
-        run_id: str | None = None,
         *,
+        run_id: str | None = None,
         base_dir: str = "./local",
     ):
-        if run_id is None:
-            run_id = str(uuid.uuid4())
-        super().__init__(run_id)
+        super().__init__(run_id=run_id)
         self.run_dir = os.path.join(base_dir, self.run_id)
         os.makedirs(self.run_dir, exist_ok=True)
 
@@ -74,7 +71,7 @@ class LocalContext(Context):
     def get_node_output_path(self, node_id: str) -> str:
         return os.path.join(self.output_dir, f"{node_id}.json")
 
-    def read(
+    async def read(
         self,
         file: File,
     ) -> bytes:
@@ -87,7 +84,7 @@ class LocalContext(Context):
         except Exception as e:
             raise UserException(f"Failed to read file {file.path}") from e
 
-    def write(
+    async def write(
         self,
         file: F,
         content: bytes,
@@ -101,7 +98,7 @@ class LocalContext(Context):
             raise UserException(f"Failed to write file {file.path}") from e
         return file
 
-    def on_node_start(
+    async def on_node_start(
         self,
         *,
         node: Node,
@@ -119,7 +116,7 @@ class LocalContext(Context):
             return output
         return None
 
-    def on_node_error(
+    async def on_node_error(
         self,
         *,
         node: Node,
@@ -132,7 +129,7 @@ class LocalContext(Context):
         )
         return exception
 
-    def on_node_finish(
+    async def on_node_finish(
         self,
         *,
         node: Node,
@@ -145,7 +142,7 @@ class LocalContext(Context):
         )
         return output
 
-    def on_workflow_start(
+    async def on_workflow_start(
         self,
         *,
         workflow: Workflow,
@@ -190,7 +187,7 @@ class LocalContext(Context):
 
         return None
 
-    def on_workflow_error(
+    async def on_workflow_error(
         self,
         *,
         workflow: Workflow,
@@ -209,7 +206,7 @@ class LocalContext(Context):
         )
         return errors, partial_output
 
-    def on_workflow_finish(
+    async def on_workflow_finish(
         self,
         *,
         workflow: Workflow,

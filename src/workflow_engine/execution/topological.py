@@ -14,14 +14,14 @@ class TopologicalExecutionAlgorithm(ExecutionAlgorithm):
     """
 
     @override
-    def execute(
+    async def execute(
         self,
         *,
         context: Context,
         workflow: Workflow,
         input: Mapping[str, Any],
     ) -> tuple[WorkflowErrors, Mapping[str, Any]]:
-        result = context.on_workflow_start(workflow=workflow, input=input)
+        result = await context.on_workflow_start(workflow=workflow, input=input)
         if result is not None:
             # TODO: maybe retry workflows that have failed
             return result
@@ -35,7 +35,7 @@ class TopologicalExecutionAlgorithm(ExecutionAlgorithm):
                 node_id, node_input = ready_nodes.popitem()
                 node = workflow.nodes_by_id[node_id]
 
-                node_outputs[node.id] = node(context, node_input)
+                node_outputs[node.id] = await node(context, node_input)
                 ready_nodes = dict(
                     workflow.get_ready_nodes(
                         input=input,
@@ -48,7 +48,7 @@ class TopologicalExecutionAlgorithm(ExecutionAlgorithm):
         except Exception as e:
             errors.add(e)
             partial_output = workflow.get_output(node_outputs, partial=True)
-            errors, partial_output = context.on_workflow_error(
+            errors, partial_output = await context.on_workflow_error(
                 workflow=workflow,
                 input=input,
                 errors=errors,
@@ -56,7 +56,7 @@ class TopologicalExecutionAlgorithm(ExecutionAlgorithm):
             )
             return errors, partial_output
 
-        output = context.on_workflow_finish(
+        output = await context.on_workflow_finish(
             workflow=workflow,
             input=input,
             output=output,

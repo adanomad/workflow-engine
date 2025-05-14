@@ -128,14 +128,14 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
         return self
 
     @final
-    def __call__(
+    async def __call__(
         self,
         context: "Context",
         input: Mapping[str, Any],
     ) -> Mapping[str, Any]:
         try:
             logger.info("Starting node %s", self.id)
-            output = context.on_node_start(node=self, input=input)
+            output = await context.on_node_start(node=self, input=input)
             if output is not None:
                 return output
             try:
@@ -144,16 +144,16 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
                 raise UserException(
                     f"Input {input} for node {self.id} is invalid: {e}",
                 )
-            output_obj = self.run(context, input_obj)
+            output_obj = await self.run(context, input_obj)
             output = output_obj.model_dump()
-            output = context.on_node_finish(node=self, input=input, output=output)
+            output = await context.on_node_finish(node=self, input=input, output=output)
             logger.info("Finished node %s", self.id)
             return output
         except Exception as e:
             # In subclasses, you don't have to worry about logging the error,
             # since it'll be logged here.
             logger.exception("Error in node %s: %s", self.id, e)
-            e = context.on_node_error(node=self, input=input, exception=e)
+            e = await context.on_node_error(node=self, input=input, exception=e)
             if isinstance(e, Mapping):
                 logger.exception(
                     "Error absorbed by context and replaced with output %s", e
@@ -163,7 +163,7 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
                 raise NodeException(self.id) from e
 
     # @abstractmethod
-    def run(self, context: "Context", input: Input_contra) -> Output_co:
+    async def run(self, context: "Context", input: Input_contra) -> Output_co:
         raise NotImplementedError("Subclasses must implement this method")
 
 

@@ -7,8 +7,8 @@ from ..core import (
     Data,
     Node,
     Params,
-    TextFile,
 )
+from ..files import TextFile
 
 
 class AppendToFileInput(Data):
@@ -35,12 +35,16 @@ class AppendToFileNode(Node[AppendToFileInput, AppendToFileOutput, AppendToFileP
     def output_type(self):
         return AppendToFileOutput
 
-    def run(self, context: Context, input: AppendToFileInput) -> AppendToFileOutput:
-        old_text = input.file.read_text(context)
+    async def run(
+        self,
+        context: Context,
+        input: AppendToFileInput,
+    ) -> AppendToFileOutput:
+        old_text = await input.file.read_text(context)
         new_text = old_text + input.text
         filename, ext = os.path.splitext(input.file.path)
         new_file = TextFile(path=filename + self.params.suffix + ext)
-        new_file = new_file.write_text(context, text=new_text)
+        new_file = await new_file.write_text(context, text=new_text)
         return AppendToFileOutput(file=new_file)
 
 
