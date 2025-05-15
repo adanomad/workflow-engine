@@ -1,9 +1,13 @@
 [tool.poetry]
 name = "workflow-engine"
-version = "0.1.0"
+version = "0.2.0"
 description = "A simple engine to execute workflows defined as JSON graphs"
 readme = "README.md"
-authors = ["Anthony Tecsa <anthonytecsa@gmail.com>"]
+authors = [
+    "Anthony Tecsa <anthonytecsa@gmail.com>",
+    "Jason Sun <jason@adanomad.com>",
+    "Justin Xu <xu.justin.j@gmail.com>",
+]
 license = "MIT"
 packages = [
     { include = "workflow_engine", from = "src" }
