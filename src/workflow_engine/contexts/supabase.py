@@ -45,8 +45,8 @@ class SupabaseContext(Context):
 
     def __init__(
         self,
-        run_id: str,
         *,
+        run_id: str | None = None,
         user_id: str,
         workflow_version_id: str,
         file_metadata_table: str = "document_info",
@@ -108,7 +108,7 @@ class SupabaseContext(Context):
         else:
             return None
 
-    def read(
+    async def read(
         self,
         file: File,
     ) -> bytes:
@@ -121,7 +121,7 @@ class SupabaseContext(Context):
             raise UserException(f"Failed to read file {file.path}") from e
         return content
 
-    def write(
+    async def write(
         self,
         file: F,
         content: bytes,
@@ -154,7 +154,7 @@ class SupabaseContext(Context):
             raise UserException(f"Failed to write file {file.path}") from e
         return file.write_metadata("file_id", file_id)
 
-    def on_node_start(
+    async def on_node_start(
         self,
         *,
         node: Node,
@@ -189,7 +189,7 @@ class SupabaseContext(Context):
         ).execute()
         return None
 
-    def on_node_error(
+    async def on_node_error(
         self,
         *,
         node: "Node",
@@ -217,7 +217,7 @@ class SupabaseContext(Context):
         )
         return exception
 
-    def on_node_finish(
+    async def on_node_finish(
         self,
         *,
         node: "Node",
@@ -240,7 +240,7 @@ class SupabaseContext(Context):
         )
         return output
 
-    def on_workflow_start(
+    async def on_workflow_start(
         self,
         *,
         workflow: Workflow,
@@ -280,7 +280,7 @@ class SupabaseContext(Context):
         ).execute()
         return None
 
-    def on_workflow_error(
+    async def on_workflow_error(
         self,
         *,
         workflow: "Workflow",
@@ -301,7 +301,7 @@ class SupabaseContext(Context):
         )
         return errors, partial_output
 
-    def on_workflow_finish(
+    async def on_workflow_finish(
         self,
         *,
         workflow: "Workflow",

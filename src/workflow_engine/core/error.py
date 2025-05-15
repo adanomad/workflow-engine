@@ -81,7 +81,7 @@ class WorkflowErrors(BaseModel):
             len(errors) for errors in self.node_errors.values()
         )
 
-    def __bool__(self) -> bool:
+    def any(self) -> bool:
         return self.count > 0
 
 

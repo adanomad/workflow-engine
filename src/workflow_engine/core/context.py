@@ -2,6 +2,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from typing import Any, TypeVar
+import uuid
 
 from .file import File
 from .error import WorkflowErrors
@@ -20,26 +21,29 @@ class Context(ABC):
 
     def __init__(
         self,
-        run_id: str,
+        *,
+        run_id: str | None = None,
     ):
+        if run_id is None:
+            run_id = str(uuid.uuid4())
         self.run_id = run_id
 
     @abstractmethod
-    def read(
+    async def read(
         self,
         file: File,
     ) -> bytes:
         raise NotImplementedError("Subclasses must implement this method")
 
     @abstractmethod
-    def write(
+    async def write(
         self,
         file: F,
         content: bytes,
     ) -> F:
         raise NotImplementedError("Subclasses must implement this method")
 
-    def on_node_start(
+    async def on_node_start(
         self,
         *,
         node: "Node",
@@ -53,7 +57,7 @@ class Context(ABC):
         """
         return None
 
-    def on_node_error(
+    async def on_node_error(
         self,
         *,
         node: "Node",
@@ -67,7 +71,7 @@ class Context(ABC):
         """
         return exception
 
-    def on_node_finish(
+    async def on_node_finish(
         self,
         *,
         node: "Node",
@@ -79,7 +83,7 @@ class Context(ABC):
         """
         return output
 
-    def on_workflow_start(
+    async def on_workflow_start(
         self,
         *,
         workflow: "Workflow",
@@ -93,7 +97,7 @@ class Context(ABC):
         """
         return None
 
-    def on_workflow_error(
+    async def on_workflow_error(
         self,
         *,
         workflow: "Workflow",
@@ -108,7 +112,7 @@ class Context(ABC):
         """
         return errors, partial_output
 
-    def on_workflow_finish(
+    async def on_workflow_finish(
         self,
         *,
         workflow: "Workflow",

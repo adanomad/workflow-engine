@@ -6,11 +6,10 @@ from ..core import (
     Context,
     Data,
     Empty,
-    JSONFile,
-    JSONLinesFile,
     Node,
     Params,
 )
+from ..files import JSONFile, JSONLinesFile
 
 
 class JSONData(Data):
@@ -36,8 +35,8 @@ class ReadJSONNode(Node[JSONFileData, JSONData, Empty]):
     def output_type(self):
         return JSONData
 
-    def run(self, context: Context, input: JSONFileData) -> JSONData:
-        return JSONData(data=input.file.read_data(context))
+    async def run(self, context: Context, input: JSONFileData) -> JSONData:
+        return JSONData(data=await input.file.read_data(context))
 
 
 class WriteJSONParams(Params):
@@ -60,9 +59,9 @@ class WriteJSONNode(Node[JSONData, JSONFileData, WriteJSONParams]):
     def output_type(self):
         return JSONFileData
 
-    def run(self, context: Context, input: JSONData) -> JSONFileData:
+    async def run(self, context: Context, input: JSONData) -> JSONFileData:
         file = JSONFile(path=self.params.file_name)
-        file = file.write_data(context, input.data)
+        file = await file.write_data(context, input.data)
         return JSONFileData(file=file)
 
 
@@ -89,8 +88,8 @@ class ReadJSONLinesNode(Node[JSONLinesFileData, JSONLinesData, Empty]):
     def output_type(self):
         return JSONLinesData
 
-    def run(self, context: Context, input: JSONLinesFileData) -> JSONLinesData:
-        return JSONLinesData(data=input.file.read_data(context))
+    async def run(self, context: Context, input: JSONLinesFileData) -> JSONLinesData:
+        return JSONLinesData(data=await input.file.read_data(context))
 
 
 class WriteJSONLinesParams(Params):
@@ -113,9 +112,9 @@ class WriteJSONLinesNode(Node[JSONLinesData, JSONLinesFileData, WriteJSONLinesPa
     def output_type(self):
         return JSONLinesFileData
 
-    def run(self, context: Context, input: JSONLinesData) -> JSONLinesFileData:
+    async def run(self, context: Context, input: JSONLinesData) -> JSONLinesFileData:
         file = JSONLinesFile(path=self.params.file_name)
-        file = file.write_data(context, input.data)
+        file = await file.write_data(context, input.data)
         return JSONLinesFileData(file=file)
 
 

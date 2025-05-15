@@ -17,9 +17,11 @@ The Workflow Engine enables you to:
 pip install aceteam-workflow-engine  # TODO: Package name to be finalized
 ```
 
-## Quick Start
+## Example
 
 ```python
+import asyncio
+
 from workflow_engine import Workflow
 import workflow_engine.nodes
 from workflow_engine.contexts import LocalContext
@@ -32,11 +34,11 @@ algorithm = TopologicalExecutionAlgorithm()
 with open("examples/addition.json") as f:
     workflow = Workflow.model_validate_json(f.read())
 
-result = algorithm.execute(
+result = asyncio.run(algorithm.execute(
     context=context,
     workflow=workflow,
     input={"c": -256},
-) # {'sum': 1811}
+)) # {'sum': 1811}
 ```
 
 Check the `examples` directory for more sample workflows:

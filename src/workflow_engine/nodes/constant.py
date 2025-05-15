@@ -15,7 +15,7 @@ class ConstantBoolNode(Node[Empty, ConstantBool, ConstantBool]):
     def output_type(self):
         return ConstantBool
 
-    def run(self, context: Context, input: Empty) -> ConstantBool:
+    async def run(self, context: Context, input: Empty) -> ConstantBool:
         return self.params
 
     @classmethod
@@ -34,7 +34,7 @@ class ConstantIntNode(Node[Empty, ConstantInt, ConstantInt]):
     def output_type(self):
         return ConstantInt
 
-    def run(self, context: Context, input: Empty) -> ConstantInt:
+    async def run(self, context: Context, input: Empty) -> ConstantInt:
         return self.params
 
     @classmethod
@@ -53,7 +53,7 @@ class ConstantStringNode(Node[Empty, ConstantString, ConstantString]):
     def output_type(self) -> Type[ConstantString]:
         return ConstantString
 
-    def run(self, context: Context, input: Data) -> ConstantString:
+    async def run(self, context: Context, input: Data) -> ConstantString:
         return ConstantString(value=self.params.value)
 
     @classmethod

@@ -16,7 +16,7 @@ class ExecutionAlgorithm(ABC):
     """
 
     @abstractmethod
-    def execute(
+    async def execute(
         self,
         *,
         context: Context,
