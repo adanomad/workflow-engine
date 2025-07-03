@@ -319,7 +319,7 @@ def test_cast_registration(context):
 
     QuestionValue.add_cast(
         AnswerValue,
-        lambda S, T: lambda ctx, v: AnswerValue(root=42),
+        lambda S, T: lambda v, ctx: AnswerValue(root=42),
     )
 
     # Try to register the same cast again (before any casting operations)
@@ -328,7 +328,7 @@ def test_cast_registration(context):
         match="Type caster from QuestionValue to AnswerValue already registered",
     ):
         QuestionValue.add_cast(
-            AnswerValue, lambda S, T: lambda ctx, v: AnswerValue(root=42)
+            AnswerValue, lambda S, T: lambda v, ctx: AnswerValue(root=42)
         )
 
     # Now test that casting works
@@ -343,7 +343,7 @@ def test_cast_registration(context):
         match="Cannot add casters for QuestionValue after it has been used to cast values",
     ):
         QuestionValue.add_cast(
-            AnswerValue, lambda S, T: lambda ctx, v: AnswerValue(root=42)
+            AnswerValue, lambda S, T: lambda v, ctx: AnswerValue(root=42)
         )
 
 

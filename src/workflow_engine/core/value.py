@@ -31,7 +31,7 @@ OriginAndArgs = TypeAliasType("OriginAndArgs", tuple[str, tuple[Type["Value"], .
 OriginAndArgsRecursive = TypeAliasType(
     "OriginAndArgsRecursive", tuple[str, tuple["OriginAndArgsRecursive", ...]]
 )
-Caster = TypeAliasType("Caster", Callable[["Context", "Value"], "Value"])
+Caster = TypeAliasType("Caster", Callable[["Value", "Context"], "Value"])
 GenericCaster = TypeAliasType(
     "GenericCaster",
     Callable[[Sequence[Type["Value"]], Sequence[Type["Value"]]], Caster],
@@ -152,7 +152,7 @@ class Value(RootModel[T], Generic[T]):
                 return cast(Caster, cast_fn)
 
         if issubclass(cls, t):
-            return lambda ctx, v: v
+            return lambda v, ctx: v
 
         return None
 
@@ -177,7 +177,7 @@ class Value(RootModel[T], Generic[T]):
 
         cast_fn = self.get_caster(t)
         if cast_fn is not None:
-            casted = cast_fn(context, self)
+            casted = cast_fn(self, context)
             assert isinstance(casted, t)
             self._cast_cache[key] = casted
             return casted
@@ -212,15 +212,15 @@ class StringMapValue(Value[Mapping[str, V]], Generic[V]):
     root: Mapping[str, V]
 
 
-Value.add_cast(StringValue, lambda S, T: lambda ctx, v: StringValue(root=str(v.root)))
+Value.add_cast(StringValue, lambda S, T: lambda v, ctx: StringValue(root=str(v.root)))
 IntegerValue.add_cast(
-    FloatValue, lambda S, T: lambda ctx, v: FloatValue(root=float(v.root))
+    FloatValue, lambda S, T: lambda v, ctx: FloatValue(root=float(v.root))
 )
 StringValue.add_cast(
-    IntegerValue, lambda S, T: lambda ctx, v: IntegerValue.model_validate_json(v.root)
+    IntegerValue, lambda S, T: lambda v, ctx: IntegerValue.model_validate_json(v.root)
 )
 StringValue.add_cast(
-    FloatValue, lambda S, T: lambda ctx, v: FloatValue.model_validate_json(v.root)
+    FloatValue, lambda S, T: lambda v, ctx: FloatValue.model_validate_json(v.root)
 )
 
 
@@ -228,7 +228,7 @@ def cast_sequence(Ss: Sequence[Type[Value]], Ts: Sequence[Type[V]]) -> Caster:
     (S,) = Ss
     (T,) = Ts
     assert S.can_cast_to(T), f"Cannot cast item type {S} to {T}"
-    return lambda ctx, value: SequenceValue[T](
+    return lambda value, ctx: SequenceValue[T](
         root=[x.cast_to(T, context=ctx) for x in value.root]
     )
 
@@ -237,7 +237,7 @@ def cast_map(Ss: Sequence[Type[Value]], Ts: Sequence[Type[V]]) -> Caster:
     (S,) = Ss
     (T,) = Ts
     assert S.can_cast_to(T), f"Cannot cast item type {S} to {T}"
-    return lambda ctx, value: StringMapValue[T](
+    return lambda value, ctx: StringMapValue[T](
         root={k: v.cast_to(T, context=ctx) for k, v in value.root.items()}  # type: ignore
     )
 
