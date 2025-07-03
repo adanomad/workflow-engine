@@ -1,0 +1,395 @@
+from typing import Literal
+
+import pytest
+
+from workflow_engine.core.value import (
+    Value,
+    StringValue,
+    IntegerValue,
+    FloatValue,
+    SequenceValue,
+    StringMapValue,
+    get_origin_and_args,
+    get_origin_and_args_recursive,
+)
+from workflow_engine.contexts.in_memory import InMemoryContext
+
+
+@pytest.fixture
+def context():
+    """Create a test context for value casting operations."""
+    return InMemoryContext()
+
+
+@pytest.mark.unit
+def test_basic_value_creation():
+    """Test basic Value creation and properties."""
+    # Test StringValue
+    str_val = StringValue(root="hello")
+    assert str_val.root == "hello"
+    assert isinstance(str_val, StringValue)
+    assert isinstance(str_val, Value)
+
+    # Test IntegerValue
+    int_val = IntegerValue(root=42)
+    assert int_val.root == 42
+    assert isinstance(int_val, IntegerValue)
+    assert isinstance(int_val, Value)
+
+    # Test FloatValue
+    float_val = FloatValue(root=3.14)
+    assert float_val.root == 3.14
+    assert isinstance(float_val, FloatValue)
+    assert isinstance(float_val, Value)
+
+
+@pytest.mark.unit
+def test_value_equality_and_hash():
+    """Test Value equality and hash functionality."""
+    val1 = StringValue(root="test")
+    val2 = StringValue(root="test")
+    val3 = StringValue(root="different")
+
+    assert val1 == val2
+    assert val1 != val3
+    assert hash(val1) == hash(val2)
+    assert hash(val1) != hash(val3)
+
+    # Test with different types
+    int_val = IntegerValue(root=42)
+    assert val1 != int_val
+    assert hash(val1) != hash(int_val)
+
+
+@pytest.mark.unit
+def test_value_serialization():
+    """Test Value serialization and deserialization."""
+    # Test StringValue
+    str_val = StringValue(root="hello world")
+    json_str = str_val.model_dump_json()
+    deserialized = StringValue.model_validate_json(json_str)
+    assert deserialized == str_val
+
+    # Test IntegerValue
+    int_val = IntegerValue(root=123)
+    json_str = int_val.model_dump_json()
+    deserialized = IntegerValue.model_validate_json(json_str)
+    assert deserialized == int_val
+
+    # Test FloatValue
+    float_val = FloatValue(root=3.14159)
+    json_str = float_val.model_dump_json()
+    deserialized = FloatValue.model_validate_json(json_str)
+    assert deserialized == float_val
+
+
+@pytest.mark.unit
+def test_basic_casting(context):
+    """Test basic casting between Value types."""
+    # Integer to String
+    int_val = IntegerValue(root=42)
+    str_val = int_val.cast_to(StringValue, context=context)
+    assert isinstance(str_val, StringValue)
+    assert str_val.root == "42"
+
+    # String to Integer
+    str_val = StringValue(root="123")
+    int_val = str_val.cast_to(IntegerValue, context=context)
+    assert isinstance(int_val, IntegerValue)
+    assert int_val.root == 123
+
+    # String to Float
+    str_val = StringValue(root="3.14")
+    float_val = str_val.cast_to(FloatValue, context=context)
+    assert isinstance(float_val, FloatValue)
+    assert float_val.root == 3.14
+
+    # Integer to Float
+    int_val = IntegerValue(root=42)
+    float_val = int_val.cast_to(FloatValue, context=context)
+    assert isinstance(float_val, FloatValue)
+    assert float_val.root == 42.0
+
+
+@pytest.mark.unit
+def test_sequence_value(context):
+    """Test SequenceValue functionality."""
+    # Create sequence of integers
+    int_sequence = SequenceValue[IntegerValue](
+        root=[IntegerValue(root=1), IntegerValue(root=2), IntegerValue(root=3)]
+    )
+    assert len(int_sequence.root) == 3
+    assert all(isinstance(x, IntegerValue) for x in int_sequence.root)
+
+    # Cast to sequence of strings
+    str_sequence = int_sequence.cast_to(SequenceValue[StringValue], context=context)
+    assert isinstance(str_sequence, SequenceValue)
+    assert len(str_sequence.root) == 3
+    assert all(isinstance(x, StringValue) for x in str_sequence.root)
+    assert [x.root for x in str_sequence.root] == ["1", "2", "3"]
+
+    # Cast back to sequence of integers
+    int_sequence_again = str_sequence.cast_to(
+        SequenceValue[IntegerValue], context=context
+    )
+    assert int_sequence_again == int_sequence
+
+
+@pytest.mark.unit
+def test_string_map_value(context):
+    """Test StringMapValue functionality."""
+    # Create map of integers
+    int_map = StringMapValue[IntegerValue](
+        root={
+            "a": IntegerValue(root=1),
+            "b": IntegerValue(root=2),
+            "c": IntegerValue(root=3),
+        }
+    )
+    assert len(int_map.root) == 3
+    assert all(isinstance(v, IntegerValue) for v in int_map.root.values())
+
+    # Cast to map of strings
+    str_map = int_map.cast_to(StringMapValue[StringValue], context=context)
+    assert isinstance(str_map, StringMapValue)
+    assert len(str_map.root) == 3
+    assert all(isinstance(v, StringValue) for v in str_map.root.values())
+    assert {k: v.root for k, v in str_map.root.items()} == {
+        "a": "1",
+        "b": "2",
+        "c": "3",
+    }
+
+    # Cast back to map of integers
+    int_map_again = str_map.cast_to(StringMapValue[IntegerValue], context=context)
+    assert int_map_again == int_map
+
+
+@pytest.mark.unit
+def test_cast_from_class_method(context):
+    """Test the cast_from class method."""
+    # Test StringValue.cast_from
+    int_val = IntegerValue(root=42)
+    str_val = StringValue.cast_from(int_val, context=context)
+    assert isinstance(str_val, StringValue)
+    assert str_val.root == "42"
+
+    # Test IntegerValue.cast_from
+    str_val = StringValue(root="123")
+    int_val = IntegerValue.cast_from(str_val, context=context)
+    assert isinstance(int_val, IntegerValue)
+    assert int_val.root == 123
+
+    # Test FloatValue.cast_from
+    int_val = IntegerValue(root=42)
+    float_val = FloatValue.cast_from(int_val, context=context)
+    assert isinstance(float_val, FloatValue)
+    assert float_val.root == 42.0
+
+
+@pytest.mark.unit
+def test_cast_cache(context):
+    """Test that casting results are cached."""
+    int_val = IntegerValue(root=42)
+
+    # First cast should compute the result
+    str_val1 = int_val.cast_to(StringValue, context=context)
+    assert str_val1.root == "42"
+
+    # Second cast should use cache
+    str_val2 = int_val.cast_to(StringValue, context=context)
+    assert str_val2 is str_val1  # Should be the same object from cache
+
+
+@pytest.mark.unit
+def test_invalid_casting(context):
+    """Test that invalid casting raises appropriate errors."""
+    int_val = IntegerValue(root=42)
+
+    # Test casting to a type that doesn't have a registered caster
+    class CustomValue(Value[str]):
+        pass
+
+    # This should fail because there's no registered caster from IntegerValue to CustomValue
+    with pytest.raises(ValueError, match="Cannot convert"):
+        int_val.cast_to(CustomValue, context=context)
+
+
+@pytest.mark.unit
+def test_self_casting(context):
+    """Test that casting to the same type returns the same object."""
+    int_val = IntegerValue(root=42)
+    same_val = int_val.cast_to(IntegerValue, context=context)
+    assert same_val is int_val
+
+
+@pytest.mark.unit
+def test_get_origin_and_args():
+    """Test the get_origin_and_args utility function."""
+    # Test with simple types
+    origin, args = get_origin_and_args(int)
+    assert origin == "int"
+    assert args == ()
+
+    origin, args = get_origin_and_args(str)
+    assert origin == "str"
+    assert args == ()
+
+    # Test with generic types
+    origin, args = get_origin_and_args(list[int])
+    assert origin == "list"
+    assert args == (int,)
+
+    origin, args = get_origin_and_args(dict[str, int])
+    assert origin == "dict"
+    assert args == (str, int)
+
+    # Test with Value types
+    origin, args = get_origin_and_args(Value)
+    assert origin == "Value"
+    assert args == ()
+
+    origin, args = get_origin_and_args(SequenceValue[IntegerValue])
+    assert origin == "SequenceValue"
+    assert args == (IntegerValue,)
+
+
+@pytest.mark.unit
+def test_get_origin_and_args_recursive():
+    """Test the get_origin_and_args_recursive utility function."""
+    # Test with simple types - IntegerValue is a RootModel[int], so it gets the int type
+    result = get_origin_and_args_recursive(IntegerValue)
+    assert result == ("IntegerValue", ())
+
+    # Test with generic types
+    result = get_origin_and_args_recursive(SequenceValue[IntegerValue])
+    assert result == ("SequenceValue", (("IntegerValue", ()),))
+
+
+@pytest.mark.unit
+def test_value_frozen_behavior():
+    """Test that Value objects are frozen (immutable)."""
+    int_val = IntegerValue(root=42)
+
+    # Should not be able to modify the root attribute
+    with pytest.raises(Exception):  # Pydantic will raise an error
+        int_val.root = 100
+
+
+@pytest.mark.unit
+def test_complex_nested_casting(context):
+    """Test complex nested casting scenarios."""
+    # Create a complex nested structure
+    nested_sequence = SequenceValue[SequenceValue[IntegerValue]](
+        root=[
+            SequenceValue[IntegerValue](
+                root=[IntegerValue(root=1), IntegerValue(root=2)]
+            ),
+            SequenceValue[IntegerValue](
+                root=[IntegerValue(root=3), IntegerValue(root=4)]
+            ),
+        ]
+    )
+
+    # Cast to nested sequence of strings
+    str_nested = nested_sequence.cast_to(
+        SequenceValue[SequenceValue[StringValue]], context=context
+    )
+    assert str_nested == SequenceValue[SequenceValue[StringValue]](
+        root=[
+            SequenceValue[StringValue](
+                root=[StringValue(root="1"), StringValue(root="2")]
+            ),
+            SequenceValue[StringValue](
+                root=[StringValue(root="3"), StringValue(root="4")]
+            ),
+        ]
+    )
+
+
+@pytest.mark.unit
+def test_cast_registration(context):
+    """Test that cast functions can be registered and work correctly."""
+
+    class QuestionValue(Value[str]):
+        pass
+
+    class AnswerValue(Value[Literal[42]]):
+        pass
+
+    QuestionValue.add_cast(
+        AnswerValue,
+        lambda S, T: lambda ctx, v: AnswerValue(root=42),
+    )
+
+    # Try to register the same cast again (before any casting operations)
+    with pytest.raises(
+        AssertionError,
+        match="Type caster from QuestionValue to AnswerValue already registered",
+    ):
+        QuestionValue.add_cast(
+            AnswerValue, lambda S, T: lambda ctx, v: AnswerValue(root=42)
+        )
+
+    # Now test that casting works
+    assert QuestionValue.can_cast_to(AnswerValue)
+    question = QuestionValue(root="the universe")
+    answer = question.cast_to(AnswerValue, context=context)
+    assert answer.root == 42
+
+    # Try to register the same cast again (after casting operations)
+    with pytest.raises(
+        RuntimeError,
+        match="Cannot add casters for QuestionValue after it has been used to cast values",
+    ):
+        QuestionValue.add_cast(
+            AnswerValue, lambda S, T: lambda ctx, v: AnswerValue(root=42)
+        )
+
+
+@pytest.mark.unit
+def test_json_parsing_edge_cases():
+    """Test JSON parsing edge cases."""
+    # Test with invalid JSON
+    with pytest.raises(Exception):  # Pydantic will raise a validation error
+        IntegerValue.model_validate_json("invalid json")
+
+    # Test with empty string
+    with pytest.raises(Exception):
+        StringValue.model_validate_json("")
+
+    # Test with null
+    with pytest.raises(Exception):
+        IntegerValue.model_validate_json("null")
+
+
+@pytest.mark.unit
+def test_sequence_value_json():
+    """Test SequenceValue JSON serialization and deserialization."""
+    # Test with simple sequence
+    sequence_json = "[1, 2, 3]"
+    sequence_val = SequenceValue[IntegerValue].model_validate_json(sequence_json)
+    assert len(sequence_val.root) == 3
+    assert [x.root for x in sequence_val.root] == [1, 2, 3]
+
+    # Test serialization back to JSON
+    json_str = sequence_val.model_dump_json()
+    assert json_str == "[1,2,3]"
+
+
+@pytest.mark.unit
+def test_string_map_value_json():
+    """Test StringMapValue JSON serialization and deserialization."""
+    # Test with simple map
+    map_json = '{"a": 1, "b": 2, "c": 3}'
+    map_val = StringMapValue[IntegerValue].model_validate_json(map_json)
+    assert len(map_val.root) == 3
+    assert {k: v.root for k, v in map_val.root.items()} == {"a": 1, "b": 2, "c": 3}
+
+    # Test serialization back to JSON
+    json_str = map_val.model_dump_json()
+    assert json_str == '{"a":1,"b":2,"c":3}'
+
+
+if __name__ == "__main__":
+    pytest.main([__file__])
