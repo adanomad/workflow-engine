@@ -1,17 +1,14 @@
 from collections.abc import Mapping, Sequence
 from logging import getLogger
 from typing import (
-    Callable,
-    ClassVar,
-    Generic,
     TYPE_CHECKING,
+    ClassVar,
+    Protocol,
+    Generic,
     Self,
     Type,
-    TypeVar,
     TypeAliasType,
-    cast,
-    get_args,
-    get_origin,
+    TypeVar,
 )
 
 from pydantic import ConfigDict, PrivateAttr, RootModel
@@ -25,47 +22,92 @@ logger = getLogger(__name__)
 
 T = TypeVar("T")
 V = TypeVar("V", bound="Value")
+ValueType = TypeAliasType("ValueType", Type["Value"])
 
 
-OriginAndArgs = TypeAliasType("OriginAndArgs", tuple[str, tuple[Type["Value"], ...]])
-OriginAndArgsRecursive = TypeAliasType(
-    "OriginAndArgsRecursive", tuple[str, tuple["OriginAndArgsRecursive", ...]]
-)
-Caster = TypeAliasType("Caster", Callable[["Value", "Context"], "Value"])
-GenericCaster = TypeAliasType(
-    "GenericCaster",
-    Callable[[Sequence[Type["Value"]], Sequence[Type["Value"]]], Caster],
-)
+def get_origin_and_args(t: ValueType) -> tuple[ValueType, tuple[ValueType, ...]]:
+    """
+    For a non-generic value type NonGenericValue, returns (NonGenericValue, ()).
 
+    For a generic value type GenericValue[Argument1Value, Argument2Value, ...],
+    returns (GenericValue, (Argument1Value, Argument2Value, ...)).
+    All arguments must themselves be Value subclasses.
+    """
 
-def get_origin_and_args(t: Type) -> tuple[str, tuple[Type, ...]]:
     # Pydantic RootModels don't play nice with get_origin and get_args, so we
     # get the root type directly from the model fields.
-    if issubclass(t, RootModel):
-        info = t.__pydantic_generic_metadata__
-        origin = info["origin"]
-        args = info["args"]
-    else:
-        origin = get_origin(t)
-        args = get_args(t)
-
+    assert issubclass(t, Value)
+    info = t.__pydantic_generic_metadata__
+    origin = info["origin"]
+    args = info["args"]
     if origin is None:
         assert len(args) == 0
-        return t.__name__, ()
+        return t, ()
     else:
+        assert issubclass(origin, Value)
         assert len(args) > 0
-        return origin.__name__, args
+        for arg in args:
+            assert issubclass(arg, Value)
+        return origin, tuple(args)
 
 
-def get_origin_and_args_recursive(t: Type["Value"]) -> OriginAndArgsRecursive:
+ValueTypeKey = TypeAliasType("ValueTypeKey", tuple[str, tuple["ValueTypeKey", ...]])
+
+
+def get_value_type_key(t: ValueType) -> ValueTypeKey:
     origin, args = get_origin_and_args(t)
-    return origin, tuple(get_origin_and_args_recursive(arg) for arg in args)
+    return origin.__name__, tuple(get_value_type_key(arg) for arg in args)
+
+
+SourceType = TypeVar("SourceType", bound="Value")
+TargetType = TypeVar("TargetType", bound="Value")
+
+
+class Caster(Protocol, Generic[SourceType, TargetType]):  # type: ignore
+    """
+    A caster is a contextual function that transforms the type of a Value.
+    """
+
+    def __call__(
+        self,
+        value: SourceType,
+        context: "Context",
+    ) -> TargetType: ...
+
+
+class GenericCaster(Protocol, Generic[SourceType, TargetType]):  # type: ignore
+    """
+    A generic caster is a contextual function that takes a source type and a
+    target type, and outputs a caster between the two types, or None if the cast
+    is not possible.
+    This is an advanced feature intended for use on generic types.
+
+    The purpose of this two-step approach is to explicitly allow or deny type
+    casts before the exact type of the value is known. This is necessary because
+    the type of a Value is not known until the Value is created.
+    """
+
+    def __call__(
+        self,
+        source_type: Type[SourceType],
+        target_type: Type[TargetType],
+    ) -> Caster[SourceType, TargetType] | None: ...
 
 
 class Value(RootModel[T], Generic[T]):
     """
     Wraps an arbitrary read-only value which can be passed as input to a node.
-    Allows users to register arbitrary functions to cast values to other types.
+
+    Each Value subclass defines a specific type (possibly generic) of value.
+    After defining the subclass, you can register Caster functions to convert
+    other Value classes to that type, using the register_cast_to decorator.
+    Casts are registered in any order.
+
+    Each Value subclass inherits its parent classes' Casters.
+    To avoid expanding the type tree every time, we cache the Casters at each
+    class the first time a cast is used.
+    Once that cache is created, the casts are locked and can no longer be
+    changed.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -73,7 +115,7 @@ class Value(RootModel[T], Generic[T]):
     # these properties force us to implement __eq__ and __hash__ to ignore them
     _casters: ClassVar[dict[str, GenericCaster]] = {}
     _resolved_casters: ClassVar[dict[str, GenericCaster] | None] = None
-    _cast_cache: dict[OriginAndArgsRecursive, "Value"] = PrivateAttr(
+    _cast_cache: dict[ValueTypeKey, "Value"] = PrivateAttr(
         default_factory=dict,
     )
 
@@ -87,9 +129,10 @@ class Value(RootModel[T], Generic[T]):
     @classmethod
     def _get_casters(cls) -> dict[str, GenericCaster]:
         """
-        Get all converters for this class, including those inherited from parent classes.
-        This method dynamically builds the converter dictionary by merging converters
-        from the current class and all its parent classes.
+        Get all type casting functions for this class, including those inherited
+        from parent classes.
+        This inherits from all parents classes, though they will be overridden
+        if the child class has its own casting function for the same type.
         """
         if cls._resolved_casters is not None:
             return cls._resolved_casters
@@ -114,50 +157,61 @@ class Value(RootModel[T], Generic[T]):
         return resolved_casters
 
     @classmethod
-    def add_cast(cls, t: Type[V], caster: GenericCaster):
+    def register_cast_to(cls, t: Type[V]):
         """
-        Register a possible type cast from this class to the class T.
+        A decorator to register a possible type cast from this class to the
+        class T, neither of which are generic.
         """
-        if cls._resolved_casters is not None:
-            raise RuntimeError(
-                f"Cannot add casters for {cls.__name__} after it has been used to cast values"
-            )
 
-        origin, _ = get_origin_and_args(t)
+        def wrap(caster: Caster[Self, V]):
+            cls.register_generic_cast_to(t)(lambda source_type, target_type: caster)
+            return caster
 
-        assert origin not in cls._casters, (
-            f"Type caster from {cls.__name__} to {origin} already registered"
-        )
-        cls._casters[origin] = caster
+        return wrap
+
+    @classmethod
+    def register_generic_cast_to(cls, t: Type[V]):
+        """
+        A decorator to register a possible type cast from this class to the
+        class T, either of which may be generic.
+        """
+
+        def wrap(caster: GenericCaster[Self, V]):
+            if cls._resolved_casters is not None:
+                raise RuntimeError(
+                    f"Cannot add casters for {cls.__name__} after it has been used to cast values"
+                )
+
+            target_origin, _ = get_origin_and_args(t)
+            name = target_origin.__name__
+            if name in cls._casters:
+                raise AssertionError(
+                    f"Type caster from {cls.__name__} to {name} already registered"
+                )
+            cls._casters[name] = caster
+
+        return wrap
 
     @classmethod
     def get_caster(cls, t: Type[V]) -> Caster | None:
-        _, from_args = get_origin_and_args(cls)
-        to_name, to_args = get_origin_and_args(t)
-
         converters = cls._get_casters()
-        if to_name in converters:
-            cast_fn = converters[to_name]
-            # Check if this is a generic cast function (takes 2 arguments) or simple cast function
-            if hasattr(cast_fn, "__code__") and cast_fn.__code__.co_argcount == 2:
-                # Generic cast function
-                cast_fn = cast(GenericCaster, cast_fn)
-                try:
-                    return cast_fn(from_args, to_args)
-                except Exception:
-                    logger.exception(f"Cannot instantiate cast function for type {t}")
-                    return None
-            else:
-                # Simple cast function
-                return cast(Caster, cast_fn)
+        target_origin, _ = get_origin_and_args(t)
+        if target_origin.__name__ in converters:
+            generic_caster = converters[target_origin.__name__]
+            caster = generic_caster(cls, t)
+            if caster is not None:
+                return caster
 
         if issubclass(cls, t):
-            return lambda v, ctx: v
+            return lambda value, context: value
 
         return None
 
     @classmethod
     def can_cast_to(cls, t: Type[V]) -> bool:
+        """
+        Returns True if there is any hope of casting this value to the type t.
+        """
         return cls.get_caster(t) is not None
 
     def __eq__(self, other):
@@ -169,16 +223,14 @@ class Value(RootModel[T], Generic[T]):
         return hash(self.root)
 
     def cast_to(self, t: Type[V], *, context: "Context") -> V:
-        key = get_origin_and_args_recursive(t)
+        key = get_value_type_key(t)
         if key in self._cast_cache:
-            casted = self._cast_cache[key]
-            assert isinstance(casted, t)
+            casted: V = self._cast_cache[key]  # type: ignore
             return casted
 
-        cast_fn = self.get_caster(t)
+        cast_fn = self.__class__.get_caster(t)
         if cast_fn is not None:
-            casted = cast_fn(self, context)
-            assert isinstance(casted, t)
+            casted: V = cast_fn(self, context)  # type: ignore
             self._cast_cache[key] = casted
             return casted
 
@@ -201,46 +253,88 @@ class FloatValue(Value[float]):
     pass
 
 
+class NullValue(Value[None]):
+    pass
+
+
 V = TypeVar("V", bound=Value)
 
 
+class OptionalValue(Value[T | NullValue], Generic[T]):
+    pass
+
+
 class SequenceValue(Value[Sequence[V]], Generic[V]):
-    root: Sequence[V]
+    pass
 
 
 class StringMapValue(Value[Mapping[str, V]], Generic[V]):
-    root: Mapping[str, V]
+    pass
 
 
-Value.add_cast(StringValue, lambda S, T: lambda v, ctx: StringValue(root=str(v.root)))
-IntegerValue.add_cast(
-    FloatValue, lambda S, T: lambda v, ctx: FloatValue(root=float(v.root))
-)
-StringValue.add_cast(
-    IntegerValue, lambda S, T: lambda v, ctx: IntegerValue.model_validate_json(v.root)
-)
-StringValue.add_cast(
-    FloatValue, lambda S, T: lambda v, ctx: FloatValue.model_validate_json(v.root)
-)
+@Value.register_cast_to(StringValue)
+def cast_any_to_string(value: "Value", context: "Context") -> StringValue:
+    return StringValue(root=value.model_dump_json())
 
 
-def cast_sequence(Ss: Sequence[Type[Value]], Ts: Sequence[Type[V]]) -> Caster:
-    (S,) = Ss
-    (T,) = Ts
-    assert S.can_cast_to(T), f"Cannot cast item type {S} to {T}"
-    return lambda value, ctx: SequenceValue[T](
-        root=[x.cast_to(T, context=ctx) for x in value.root]
-    )
+@IntegerValue.register_cast_to(FloatValue)
+def cast_integer_to_float(value: IntegerValue, context: "Context") -> FloatValue:
+    return FloatValue(root=float(value.root))
 
 
-def cast_map(Ss: Sequence[Type[Value]], Ts: Sequence[Type[V]]) -> Caster:
-    (S,) = Ss
-    (T,) = Ts
-    assert S.can_cast_to(T), f"Cannot cast item type {S} to {T}"
-    return lambda value, ctx: StringMapValue[T](
-        root={k: v.cast_to(T, context=ctx) for k, v in value.root.items()}  # type: ignore
-    )
+@StringValue.register_cast_to(IntegerValue)
+def cast_string_to_integer(value: StringValue, context: "Context") -> IntegerValue:
+    return IntegerValue.model_validate_json(value.root)
 
 
-SequenceValue.add_cast(SequenceValue, cast_sequence)
-StringMapValue.add_cast(StringMapValue, cast_map)
+@StringValue.register_cast_to(FloatValue)
+def cast_string_to_float(value: StringValue, context: "Context") -> FloatValue:
+    return FloatValue.model_validate_json(value.root)
+
+
+@SequenceValue.register_generic_cast_to(SequenceValue)
+def cast_sequence_to_sequence(
+    source_type: Type[SequenceValue[SourceType]],
+    target_type: Type[SequenceValue[TargetType]],
+) -> Caster[SequenceValue[SourceType], SequenceValue[TargetType]] | None:
+    source_origin, (source_item_type,) = get_origin_and_args(source_type)
+    target_origin, (target_item_type,) = get_origin_and_args(target_type)
+
+    assert source_origin is SequenceValue
+    assert target_origin is SequenceValue
+    if not source_item_type.can_cast_to(target_item_type):
+        return None
+
+    def _cast(value: source_type, context: "Context") -> target_type:
+        return target_type(
+            root=[
+                x.cast_to(target_item_type, context=context)  # type: ignore
+                for x in value.root
+            ]
+        )
+
+    return _cast
+
+
+@StringMapValue.register_generic_cast_to(StringMapValue)
+def cast_string_map_to_string_map(
+    source_type: Type[StringMapValue[SourceType]],
+    target_type: Type[StringMapValue[TargetType]],
+) -> Caster[StringMapValue[SourceType], StringMapValue[TargetType]] | None:
+    source_origin, (source_value_type,) = get_origin_and_args(source_type)
+    target_origin, (target_value_type,) = get_origin_and_args(target_type)
+
+    assert source_origin is StringMapValue
+    assert target_origin is StringMapValue
+    if not source_value_type.can_cast_to(target_value_type):
+        return None
+
+    def _cast(value: source_type, context: "Context") -> target_type:
+        return target_type(
+            root={
+                k: v.cast_to(target_value_type, context=context)  # type: ignore
+                for k, v in value.root.items()
+            }
+        )
+
+    return _cast

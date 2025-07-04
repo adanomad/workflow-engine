@@ -2,6 +2,7 @@ from typing import Literal
 
 import pytest
 
+from workflow_engine import Context
 from workflow_engine.core.value import (
     Value,
     StringValue,
@@ -10,7 +11,7 @@ from workflow_engine.core.value import (
     SequenceValue,
     StringMapValue,
     get_origin_and_args,
-    get_origin_and_args_recursive,
+    get_value_type_key,
 )
 from workflow_engine.contexts.in_memory import InMemoryContext
 
@@ -226,43 +227,25 @@ def test_self_casting(context):
 @pytest.mark.unit
 def test_get_origin_and_args():
     """Test the get_origin_and_args utility function."""
-    # Test with simple types
-    origin, args = get_origin_and_args(int)
-    assert origin == "int"
-    assert args == ()
-
-    origin, args = get_origin_and_args(str)
-    assert origin == "str"
-    assert args == ()
-
-    # Test with generic types
-    origin, args = get_origin_and_args(list[int])
-    assert origin == "list"
-    assert args == (int,)
-
-    origin, args = get_origin_and_args(dict[str, int])
-    assert origin == "dict"
-    assert args == (str, int)
-
     # Test with Value types
-    origin, args = get_origin_and_args(Value)
-    assert origin == "Value"
+    origin, args = get_origin_and_args(StringValue)
+    assert origin == StringValue
     assert args == ()
 
     origin, args = get_origin_and_args(SequenceValue[IntegerValue])
-    assert origin == "SequenceValue"
+    assert origin == SequenceValue
     assert args == (IntegerValue,)
 
 
 @pytest.mark.unit
-def test_get_origin_and_args_recursive():
-    """Test the get_origin_and_args_recursive utility function."""
+def test_get_value_type_key():
+    """Test the get_value_type_key utility function."""
     # Test with simple types - IntegerValue is a RootModel[int], so it gets the int type
-    result = get_origin_and_args_recursive(IntegerValue)
+    result = get_value_type_key(IntegerValue)
     assert result == ("IntegerValue", ())
 
     # Test with generic types
-    result = get_origin_and_args_recursive(SequenceValue[IntegerValue])
+    result = get_value_type_key(SequenceValue[IntegerValue])
     assert result == ("SequenceValue", (("IntegerValue", ()),))
 
 
@@ -317,19 +300,21 @@ def test_cast_registration(context):
     class AnswerValue(Value[Literal[42]]):
         pass
 
-    QuestionValue.add_cast(
-        AnswerValue,
-        lambda S, T: lambda v, ctx: AnswerValue(root=42),
-    )
+    @QuestionValue.register_cast_to(AnswerValue)
+    def cast_question_to_answer(value: QuestionValue, context: Context) -> AnswerValue:
+        return AnswerValue(root=42)
 
     # Try to register the same cast again (before any casting operations)
     with pytest.raises(
         AssertionError,
         match="Type caster from QuestionValue to AnswerValue already registered",
     ):
-        QuestionValue.add_cast(
-            AnswerValue, lambda S, T: lambda v, ctx: AnswerValue(root=42)
-        )
+
+        @QuestionValue.register_cast_to(AnswerValue)
+        def cast_question_to_answer(
+            value: QuestionValue, context: Context
+        ) -> AnswerValue:
+            return AnswerValue(root=42)
 
     # Now test that casting works
     assert QuestionValue.can_cast_to(AnswerValue)
@@ -342,9 +327,12 @@ def test_cast_registration(context):
         RuntimeError,
         match="Cannot add casters for QuestionValue after it has been used to cast values",
     ):
-        QuestionValue.add_cast(
-            AnswerValue, lambda S, T: lambda v, ctx: AnswerValue(root=42)
-        )
+
+        @QuestionValue.register_cast_to(AnswerValue)
+        def cast_question_to_answer(
+            value: QuestionValue, context: Context
+        ) -> AnswerValue:
+            return AnswerValue(root=42)
 
 
 @pytest.mark.unit
