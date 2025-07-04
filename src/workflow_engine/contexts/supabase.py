@@ -93,9 +93,6 @@ class SupabaseContext(Context):
         return self.supabase.table(self.workflow_node_runs_table_name)
 
     def get_env(self, key: str, default: str | None = None) -> str:
-        """
-        Maybe in the long run we will have a
-        """
         return get_env(key, default=default)
 
     def get_file_id(self, file: File) -> str | None:
