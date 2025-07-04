@@ -3,8 +3,8 @@ from logging import getLogger
 from typing import (
     TYPE_CHECKING,
     ClassVar,
-    Protocol,
     Generic,
+    Protocol,
     Self,
     Type,
     TypeAliasType,
@@ -254,13 +254,6 @@ class FloatValue(Value[float]):
 
 
 class NullValue(Value[None]):
-    pass
-
-
-V = TypeVar("V", bound=Value)
-
-
-class OptionalValue(Value[T | NullValue], Generic[T]):
     pass
 
 
