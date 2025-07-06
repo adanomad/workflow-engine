@@ -1,3 +1,5 @@
+# workflow_engine/core/value.py
+import asyncio
 import inspect
 from collections.abc import Mapping, Sequence
 from logging import getLogger
@@ -288,8 +290,8 @@ class StringMapValue(Value[Mapping[str, V]], Generic[V]):
 
 
 @Value.register_cast_to(StringValue)
-def cast_any_to_string(value: "Value", context: "Context") -> StringValue:
-    return StringValue(value.model_dump_json())
+async def cast_value_to_string(value: Value, context: "Context") -> StringValue:
+    return StringValue(str(value.root))
 
 
 @IntegerValue.register_cast_to(FloatValue)
@@ -338,12 +340,13 @@ def cast_sequence_to_sequence(
         return None
 
     async def _cast(value: source_type, context: "Context") -> target_type:
-        return target_type(
-            root=[
-                await x.cast_to(target_item_type, context=context)  # type: ignore
-                for x in value.root
-            ]
-        )
+        # Cast all items in parallel
+        cast_tasks = [
+            x.cast_to(target_item_type, context=context)  # type: ignore
+            for x in value.root
+        ]
+        casted_items = await asyncio.gather(*cast_tasks)
+        return target_type(root=casted_items)  # type: ignore
 
     return _cast
 
@@ -362,12 +365,15 @@ def cast_string_map_to_string_map(
         return None
 
     async def _cast(value: source_type, context: "Context") -> target_type:
-        return target_type(
-            root={
-                k: await v.cast_to(target_value_type, context=context)  # type: ignore
-                for k, v in value.root.items()
-            }
-        )
+        # Cast all values in parallel
+        items = list(value.root.items())
+        keys = [k for k, v in items]
+        cast_tasks = [
+            v.cast_to(target_value_type, context=context)  # type: ignore
+            for k, v in items
+        ]
+        casted_values = await asyncio.gather(*cast_tasks)
+        return target_type(root=dict(zip(keys, casted_values)))  # type: ignore
 
     return _cast
 
@@ -380,4 +386,5 @@ __all__ = [
     "SequenceValue",
     "StringMapValue",
     "StringValue",
+    "Value",
 ]

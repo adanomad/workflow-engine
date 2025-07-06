@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .value import Value
+
 if TYPE_CHECKING:
     from .context import Context
 
@@ -21,21 +23,33 @@ class File(BaseModel, ABC):
     mime_type: ClassVar[str]
     path: str
 
+
+class FileValue(Value[File]):
+    """
+    A Value that represents a file.
+    """
+
     async def read(self, context: "Context") -> bytes:
         return await context.read(file=self)
 
     async def write(self, context: "Context", content: bytes) -> Self:
         return await context.write(file=self, content=content)
 
+    async def copy_from_local_file(self, context: "Context", path: str) -> Self:
+        with open(path, "rb") as f:
+            data = f.read()
+            return await self.write(context, data)
+
     def write_metadata(self, key: str, value: Any) -> Self:
-        if key in self.metadata:
-            assert self.metadata[key] == value
+        if key in self.root.metadata:
+            assert self.root.metadata[key] == value
             return self
-        metadata = dict(self.metadata)
+        metadata = dict(self.root.metadata)
         metadata[key] = value
-        return self.model_copy(update={"metadata": metadata})
+        return type(self)(self.root.model_copy(update={"metadata": metadata}))
 
 
 __all__ = [
     "File",
+    "FileValue",
 ]

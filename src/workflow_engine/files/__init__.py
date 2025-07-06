@@ -1,10 +1,10 @@
-from .json import JSONFile, JSONLinesFile
-from .pdf import PDFFile
-from .text import TextFile
+from .json import JSONFileValue, JSONLinesFileValue
+from .pdf import PDFFileValue
+from .text import TextFileValue
 
 __all__ = [
-    "JSONFile",
-    "JSONLinesFile",
-    "PDFFile",
-    "TextFile",
+    "JSONFileValue",
+    "JSONLinesFileValue",
+    "PDFFileValue",
+    "TextFileValue",
 ]

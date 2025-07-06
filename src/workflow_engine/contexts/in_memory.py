@@ -1,9 +1,11 @@
 # workflow_engine/contexts/in_memory.py
-from ..core import Context, File
 from typing import TypeVar
 
+from overrides import override
 
-F = TypeVar("F", bound=File)
+from ..core import Context, FileValue
+
+F = TypeVar("F", bound=FileValue)
 
 
 class InMemoryContext(Context):
@@ -15,18 +17,20 @@ class InMemoryContext(Context):
         super().__init__(run_id=run_id)
         self.data: dict[str, bytes] = {}
 
+    @override
     async def read(
         self,
-        file: File,
+        file: FileValue,
     ) -> bytes:
-        return self.data[file.path]
+        return self.data[file.root.path]
 
+    @override
     async def write(
         self,
         file: F,
         content: bytes,
     ) -> F:
-        self.data[file.path] = content
+        self.data[file.root.path] = content
         return file
 
 

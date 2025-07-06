@@ -2,26 +2,28 @@
 import os
 from typing import Literal
 
+from workflow_engine import StringValue
 from ..core import (
     Context,
     Data,
+    File,
     Node,
     Params,
 )
-from ..files import TextFile
+from ..files import TextFileValue
 
 
 class AppendToFileInput(Data):
-    file: TextFile
-    text: str
+    file: TextFileValue
+    text: StringValue
 
 
 class AppendToFileOutput(Data):
-    file: TextFile
+    file: TextFileValue
 
 
 class AppendToFileParams(Params):
-    suffix: str
+    suffix: StringValue
 
 
 class AppendToFileNode(Node[AppendToFileInput, AppendToFileOutput, AppendToFileParams]):
@@ -41,9 +43,9 @@ class AppendToFileNode(Node[AppendToFileInput, AppendToFileOutput, AppendToFileP
         input: AppendToFileInput,
     ) -> AppendToFileOutput:
         old_text = await input.file.read_text(context)
-        new_text = old_text + input.text
-        filename, ext = os.path.splitext(input.file.path)
-        new_file = TextFile(path=filename + self.params.suffix + ext)
+        new_text = old_text + input.text.root
+        filename, ext = os.path.splitext(input.file.root.path)
+        new_file = TextFileValue(File(path=filename + self.params.suffix.root + ext))
         new_file = await new_file.write_text(context, text=new_text)
         return AppendToFileOutput(file=new_file)
 

@@ -3,19 +3,27 @@
 Simple nodes for testing the workflow engine, with limited usefulness otherwise.
 """
 
-from collections.abc import Sequence
 from typing import Literal
 
-from ..core import Context, Data, Empty, Node, Params
+from ..core import (
+    Context,
+    Data,
+    Empty,
+    FloatValue,
+    IntegerValue,
+    Node,
+    Params,
+    SequenceValue,
+)
 
 
 class AddNodeInput(Data):
-    a: int
-    b: int
+    a: FloatValue
+    b: FloatValue
 
 
 class SumOutput(Data):
-    sum: int
+    sum: FloatValue
 
 
 class AddNode(Node[AddNodeInput, SumOutput, Empty]):
@@ -30,15 +38,15 @@ class AddNode(Node[AddNodeInput, SumOutput, Empty]):
         return SumOutput
 
     async def run(self, context: Context, input: AddNodeInput) -> SumOutput:
-        return SumOutput(sum=input.a + input.b)
+        return SumOutput(sum=FloatValue(input.a.root + input.b.root))
 
 
 class SumNodeInput(Data):
-    values: Sequence[int]
+    values: SequenceValue[FloatValue]
 
 
 class SumNodeOutput(Data):
-    sum: int
+    sum: FloatValue
 
 
 class SumNode(Node[SumNodeInput, SumNodeOutput, Empty]):
@@ -53,32 +61,37 @@ class SumNode(Node[SumNodeInput, SumNodeOutput, Empty]):
         return SumNodeOutput
 
     async def run(self, context: Context, input: SumNodeInput) -> SumNodeOutput:
-        return SumNodeOutput(sum=sum(input.values))
+        return SumNodeOutput(sum=FloatValue(sum(v.root for v in input.values.root)))
 
 
-class IntData(Data):
-    value: int
+class IntegerData(Data):
+    value: IntegerValue
 
 
 class FactorizationData(Data):
-    factors: Sequence[int]
+    factors: SequenceValue[IntegerValue]
 
 
-class FactorizationNode(Node[IntData, FactorizationData, Params]):
+class FactorizationNode(Node[IntegerData, FactorizationData, Params]):
     type: Literal["Factorization"] = "Factorization"
 
     @property
     def input_type(self):
-        return IntData
+        return IntegerData
 
     @property
     def output_type(self):
         return FactorizationData
 
-    async def run(self, context: Context, input: IntData) -> FactorizationData:
-        if input.value > 0:
+    async def run(self, context: Context, input: IntegerData) -> FactorizationData:
+        value = input.value.root
+        if value > 0:
             return FactorizationData(
-                factors=[i for i in range(1, input.value + 1) if input.value % i == 0]
+                factors=SequenceValue(
+                    root=[
+                        IntegerValue(i) for i in range(1, value + 1) if value % i == 0
+                    ]
+                )
             )
         raise ValueError("Can only factorize positive integers")
 

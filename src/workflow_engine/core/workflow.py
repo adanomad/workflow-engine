@@ -2,14 +2,15 @@
 from collections.abc import Mapping, Sequence
 from functools import cached_property
 from itertools import chain
-from typing import Any, Type
 
 import networkx as nx
-from pydantic import BaseModel, ConfigDict, model_validator, ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
+from .data import DataMapping
 from .edge import Edge, InputEdge, OutputEdge
 from .error import UserException
 from .node import Node
+from .value import ValueType
 
 
 class Workflow(BaseModel):
@@ -47,7 +48,7 @@ class Workflow(BaseModel):
         return edges_by_target
 
     @cached_property
-    def input_fields(self) -> Mapping[str, Type[Any]]:
+    def input_fields(self) -> Mapping[str, ValueType]:
         return {
             edge.source_key: self.nodes_by_id[edge.source_id].output_fields[
                 edge.source_key
@@ -56,7 +57,7 @@ class Workflow(BaseModel):
         }
 
     @cached_property
-    def output_fields(self) -> Mapping[str, Type[Any]]:
+    def output_fields(self) -> Mapping[str, ValueType]:
         return {
             edge.target_key: self.nodes_by_id[edge.target_id].input_fields[
                 edge.target_key
@@ -103,10 +104,10 @@ class Workflow(BaseModel):
 
     def get_ready_nodes(
         self,
-        input: Mapping[str, Any],
-        node_outputs: Mapping[str, Mapping[str, Any]] | None = None,
-        partial_results: Mapping[str, Mapping[str, Any]] | None = None,
-    ) -> Mapping[str, Mapping[str, Any]]:
+        input: DataMapping,
+        node_outputs: Mapping[str, DataMapping] | None = None,
+        partial_results: Mapping[str, DataMapping] | None = None,
+    ) -> Mapping[str, DataMapping]:
         """
         Given the input and the set of nodes which have already finished, return
         the nodes that are now ready to be executed and their arguments.
@@ -119,7 +120,7 @@ class Workflow(BaseModel):
         if node_outputs is None:
             node_outputs = {}
 
-        ready_nodes: dict[str, Mapping[str, Any]] = (
+        ready_nodes: dict[str, DataMapping] = (
             {} if partial_results is None else dict(partial_results)
         )
         for node in self.nodes:
@@ -134,15 +135,15 @@ class Workflow(BaseModel):
 
             # node might be ready, we have to check all its input edges
             ready: bool = True
-            node_input_dict: dict[str, Any] = {}
+            node_input_dict: DataMapping = {}
             for target_key, edge in self.edges_by_target[node.id].items():
                 # if the input is missing, we will let the node figure it out
                 if isinstance(edge, InputEdge):
-                    node_input_dict[target_key] = input.get(edge.input_key)
+                    node_input_dict[target_key] = input[edge.input_key]
                 elif edge.source_id in node_outputs:
-                    node_input_dict[target_key] = node_outputs[edge.source_id].get(
+                    node_input_dict[target_key] = node_outputs[edge.source_id][
                         edge.source_key
-                    )
+                    ]
                 else:
                     ready = False
                     break
@@ -159,9 +160,9 @@ class Workflow(BaseModel):
 
     def get_output(
         self,
-        node_outputs: Mapping[str, Mapping[str, Any]],
+        node_outputs: Mapping[str, DataMapping],
         partial: bool = False,
-    ) -> Mapping[str, Any]:
+    ) -> DataMapping:
         """
         Get the output of the workflow.
 
@@ -169,7 +170,7 @@ class Workflow(BaseModel):
         output will only include nodes that have been executed, for which the
         output field is available.
         """
-        output: dict[str, Any] = {}
+        output: DataMapping = {}
         for edge in self.output_edges:
             if edge.source_id not in node_outputs:
                 if partial:

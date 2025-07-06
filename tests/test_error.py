@@ -5,6 +5,7 @@ import pytest
 from workflow_engine import (
     Edge,
     OutputEdge,
+    StringValue,
     UserException,
     Workflow,
     WorkflowErrors,
@@ -19,11 +20,11 @@ def create_error_workflow():
     return Workflow(
         nodes=[
             constant := ConstantStringNode.from_value(
-                node_id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                node_id="constant",
                 value="workflow-engine",
             ),
             error := ErrorNode.from_name(
-                node_id="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                node_id="error",
                 name="RuntimeError",
             ),
         ],
@@ -81,7 +82,7 @@ async def test_workflow_error_handling():
     )
 
     # Verify the output still contains the constant value
-    assert output == {"text": "workflow-engine"}
+    assert output == {"text": StringValue("workflow-engine")}
 
     # Verify on_node_error was called with the correct arguments
     mock_on_node_error.assert_called_once()

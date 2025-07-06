@@ -1,23 +1,32 @@
 import pytest
 
-from workflow_engine import Edge, InputEdge, OutputEdge, Workflow
-from workflow_engine.contexts import LocalContext
+from workflow_engine import (
+    Edge,
+    FloatValue,
+    InputEdge,
+    IntegerValue,
+    OutputEdge,
+    Workflow,
+)
+from workflow_engine.contexts import InMemoryContext
 from workflow_engine.execution import TopologicalExecutionAlgorithm
-from workflow_engine.nodes import AddNode, ConstantIntNode
+from workflow_engine.nodes import AddNode, ConstantIntegerNode
 
 
 def create_addition_workflow():
     """Helper function to create the addition workflow."""
     return Workflow(
         nodes=[
-            a := ConstantIntNode.from_value(
-                node_id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", value=42
+            a := ConstantIntegerNode.from_value(
+                node_id="a",
+                value=42,
             ),
-            b := ConstantIntNode.from_value(
-                node_id="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", value=2025
+            b := ConstantIntegerNode.from_value(
+                node_id="b",
+                value=2025,
             ),
-            a_plus_b := AddNode(id="abababab-abab-abab-abab-abababababab"),
-            a_plus_b_plus_c := AddNode(id="abcabcab-cabc-abca-bcab-cabcabcabcab"),
+            a_plus_b := AddNode(id="a+b"),
+            a_plus_b_plus_c := AddNode(id="a+b+c"),
         ],
         edges=[
             Edge(
@@ -62,7 +71,7 @@ def test_workflow_serialization():
 async def test_workflow_execution():
     """Test that the workflow executes correctly and produces the expected result."""
     workflow = create_addition_workflow()
-    context = LocalContext()
+    context = InMemoryContext()
     algorithm = TopologicalExecutionAlgorithm()
 
     c = -256
@@ -70,7 +79,7 @@ async def test_workflow_execution():
     errors, output = await algorithm.execute(
         context=context,
         workflow=workflow,
-        input={"c": c},
+        input={"c": IntegerValue(c)},
     )
     assert not errors.any()
-    assert output == {"sum": 42 + 2025 + c}
+    assert output == {"sum": FloatValue(42 + 2025 + c)}

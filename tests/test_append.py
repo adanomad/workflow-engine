@@ -1,9 +1,9 @@
 import pytest
 
-from workflow_engine import InputEdge, OutputEdge, Workflow
+from workflow_engine import File, InputEdge, OutputEdge, StringValue, Workflow
 from workflow_engine.contexts import InMemoryContext
-from workflow_engine.files import TextFile
 from workflow_engine.execution import TopologicalExecutionAlgorithm
+from workflow_engine.files import TextFileValue
 from workflow_engine.nodes import (
     AppendToFileNode,
     AppendToFileParams,
@@ -15,8 +15,8 @@ def create_append_workflow():
     return Workflow(
         nodes=[
             append := AppendToFileNode(
-                id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                params=AppendToFileParams(suffix="_append"),
+                id="append",
+                params=AppendToFileParams(suffix=StringValue("_append")),
             ),
         ],
         edges=[],
@@ -47,10 +47,10 @@ async def test_workflow_execution():
 
     # Create input with a text file
     hello_world = "Hello, world!"
-    input_file = TextFile(path="test.txt")
+    input_file = TextFileValue(File(path="test.txt"))
     input_file = await input_file.write_text(context, text=hello_world)
 
-    appended_text = "This text will be appended to the file."
+    appended_text = StringValue("This text will be appended to the file.")
     errors, output = await algorithm.execute(
         context=context,
         workflow=workflow,
@@ -64,7 +64,8 @@ async def test_workflow_execution():
     assert not errors.any()
 
     # Verify the output file exists and has the correct content
-    output_file = TextFile.model_validate(output["file"])
-    assert output_file.path == "test_append.txt"
+    output_file = output["file"]
+    assert isinstance(output_file, TextFileValue)
+    assert output_file.root.path == "test_append.txt"
     output_text = await output_file.read_text(context)
-    assert output_text == hello_world + appended_text
+    assert output_text == hello_world + appended_text.root

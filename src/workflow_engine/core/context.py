@@ -1,19 +1,20 @@
 # workflow_engine/core/context.py
-from abc import ABC, abstractmethod
-from collections.abc import Mapping
-from typing import Any, TypeVar
 import uuid
+from abc import ABC, abstractmethod
+from typing import TypeVar
 
-from .file import File
+from overrides import EnforceOverrides
+
+from .data import DataMapping
 from .error import WorkflowErrors
+from .file import FileValue
 from .node import Node
 from .workflow import Workflow
 
+F = TypeVar("F", bound=FileValue)
 
-F = TypeVar("F", bound=File)
 
-
-class Context(ABC):
+class Context(ABC, EnforceOverrides):
     """
     Represents the environment in which a workflow is executed.
     A context's life is limited to the execution of a single workflow.
@@ -31,8 +32,15 @@ class Context(ABC):
     @abstractmethod
     async def read(
         self,
-        file: File,
+        file: FileValue,
     ) -> bytes:
+        """
+        Read the content of a file from the context.
+
+        file: the file to read
+
+        The context can modify the file by returning a different FileValue.
+        """
         raise NotImplementedError("Subclasses must implement this method")
 
     @abstractmethod
@@ -41,14 +49,22 @@ class Context(ABC):
         file: F,
         content: bytes,
     ) -> F:
+        """
+        Write the content of a file to the context.
+
+        file: the file to write
+        content: the content to write
+
+        The context can modify the file by returning a different FileValue.
+        """
         raise NotImplementedError("Subclasses must implement this method")
 
     async def on_node_start(
         self,
         *,
         node: "Node",
-        input: Mapping[str, Any],
-    ) -> Mapping[str, Any] | None:
+        input: DataMapping,
+    ) -> DataMapping | None:
         """
         A hook that is called when a node starts execution.
 
@@ -61,9 +77,9 @@ class Context(ABC):
         self,
         *,
         node: "Node",
-        input: Mapping[str, Any],
+        input: DataMapping,
         exception: Exception,
-    ) -> Exception | Mapping[str, Any]:
+    ) -> Exception | DataMapping:
         """
         A hook that is called when a node raises an error.
         The context can modify the error by returning a different Exception, or
@@ -75,11 +91,16 @@ class Context(ABC):
         self,
         *,
         node: "Node",
-        input: Mapping[str, Any],
-        output: Mapping[str, Any],
-    ) -> Mapping[str, Any]:
+        input: DataMapping,
+        output: DataMapping,
+    ) -> DataMapping:
         """
         A hook that is called when a node finishes execution.
+
+        input: the input data to the node
+        output: the output data from the node
+
+        The context can modify the output by returning a different DataMapping.
         """
         return output
 
@@ -87,10 +108,13 @@ class Context(ABC):
         self,
         *,
         workflow: "Workflow",
-        input: Mapping[str, Any],
-    ) -> tuple[WorkflowErrors, Mapping[str, Any]] | None:
+        input: DataMapping,
+    ) -> tuple[WorkflowErrors, DataMapping] | None:
         """
         A hook that is called when a workflow starts execution.
+
+        workflow: the workflow that is starting execution
+        input: the input data to the workflow
 
         If the context already knows what the workflow's output will be, return
         that output to skip workflow execution.
@@ -101,12 +125,18 @@ class Context(ABC):
         self,
         *,
         workflow: "Workflow",
-        input: Mapping[str, Any],
+        input: DataMapping,
         errors: WorkflowErrors,
-        partial_output: Mapping[str, Any],
-    ) -> tuple[WorkflowErrors, Mapping[str, Any]]:
+        partial_output: DataMapping,
+    ) -> tuple[WorkflowErrors, DataMapping]:
         """
         A hook that is called when a workflow raises an error.
+
+        workflow: the workflow that raised the error
+        input: the input data to the workflow
+        errors: the errors that occurred
+        partial_output: the partial output data from the workflow
+
         The context can modify the errors or partial output by returning a
         different tuple.
         """
@@ -116,11 +146,17 @@ class Context(ABC):
         self,
         *,
         workflow: "Workflow",
-        input: Mapping[str, Any],
-        output: Mapping[str, Any],
-    ) -> Mapping[str, Any]:
+        input: DataMapping,
+        output: DataMapping,
+    ) -> DataMapping:
         """
         A hook that is called when a workflow finishes execution.
+
+        workflow: the workflow that finished execution
+        input: the input data to the workflow
+        output: the output data from the workflow
+
+        The context can modify the output by returning a different DataMapping.
         """
         return output
 
