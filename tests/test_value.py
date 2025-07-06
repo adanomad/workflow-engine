@@ -117,7 +117,7 @@ async def test_sequence_value(context):
     """Test SequenceValue functionality."""
     # Create sequence of integers
     int_sequence = SequenceValue[IntegerValue](
-        root=[IntegerValue(1), IntegerValue(2), IntegerValue(3)]
+        [IntegerValue(1), IntegerValue(2), IntegerValue(3)]
     )
     assert len(int_sequence.root) == 3
     assert all(isinstance(x, IntegerValue) for x in int_sequence.root)
@@ -143,7 +143,7 @@ async def test_string_map_value(context):
     """Test StringMapValue functionality."""
     # Create map of integers
     int_map = StringMapValue[IntegerValue](
-        root={
+        {
             "a": IntegerValue(1),
             "b": IntegerValue(2),
             "c": IntegerValue(3),
@@ -266,9 +266,9 @@ async def test_complex_nested_casting(context):
     """Test complex nested casting scenarios."""
     # Create a complex nested structure
     nested_sequence = SequenceValue[SequenceValue[IntegerValue]](
-        root=[
-            SequenceValue[IntegerValue](root=[IntegerValue(1), IntegerValue(2)]),
-            SequenceValue[IntegerValue](root=[IntegerValue(3), IntegerValue(4)]),
+        [
+            SequenceValue[IntegerValue]([IntegerValue(1), IntegerValue(2)]),
+            SequenceValue[IntegerValue]([IntegerValue(3), IntegerValue(4)]),
         ]
     )
 
@@ -277,9 +277,9 @@ async def test_complex_nested_casting(context):
         SequenceValue[SequenceValue[StringValue]], context=context
     )
     assert str_nested == SequenceValue[SequenceValue[StringValue]](
-        root=[
-            SequenceValue[StringValue](root=[StringValue("1"), StringValue("2")]),
-            SequenceValue[StringValue](root=[StringValue("3"), StringValue("4")]),
+        [
+            SequenceValue[StringValue]([StringValue("1"), StringValue("2")]),
+            SequenceValue[StringValue]([StringValue("3"), StringValue("4")]),
         ]
     )
 

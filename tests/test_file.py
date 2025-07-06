@@ -33,9 +33,9 @@ async def test_cast_jsonlines_to_sequence(context: Context):
     )
     assert data == SequenceValue[StringMapValue[IntegerValue]](
         [
-            StringMapValue(root={"a": IntegerValue(1)}),
-            StringMapValue(root={"b": IntegerValue(2)}),
-            StringMapValue(root={"c": IntegerValue(3)}),
+            StringMapValue({"a": IntegerValue(1)}),
+            StringMapValue({"b": IntegerValue(2)}),
+            StringMapValue({"c": IntegerValue(3)}),
         ]
     )
 

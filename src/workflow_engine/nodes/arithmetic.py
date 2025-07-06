@@ -88,9 +88,7 @@ class FactorizationNode(Node[IntegerData, FactorizationData, Params]):
         if value > 0:
             return FactorizationData(
                 factors=SequenceValue(
-                    root=[
-                        IntegerValue(i) for i in range(1, value + 1) if value % i == 0
-                    ]
+                    [IntegerValue(i) for i in range(1, value + 1) if value % i == 0]
                 )
             )
         raise ValueError("Can only factorize positive integers")

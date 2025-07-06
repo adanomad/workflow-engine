@@ -1,5 +1,4 @@
 # workflow_engine/files/json.py
-from hashlib import md5
 import datetime
 import json
 from collections.abc import Sequence
@@ -114,10 +113,8 @@ def cast_json_to_string_map(
 
 @Value.register_cast_to(JSONFileValue)
 async def cast_any_to_json_file(value: Value, context: "Context") -> JSONFileValue:
-    filename = md5(str(value).encode()).hexdigest()
-    file = JSONFileValue(File(path=filename + ".json"))
-    await file.write_data(context=context, data=value.model_dump())
-    return file
+    file = JSONFileValue(File(path=f"{value.md5}.json"))
+    return await file.write_data(context=context, data=value.model_dump())
 
 
 class JSONLinesFileValue(TextFileValue):
@@ -181,6 +178,15 @@ def cast_json_lines_to_sequence(
         return _read_then_recast
 
     return None
+
+
+@SequenceValue.register_cast_to(JSONLinesFileValue)
+async def cast_sequence_to_json_lines(
+    value: SequenceValue[Value],
+    context: "Context",
+) -> JSONLinesFileValue:
+    file = JSONLinesFileValue(File(path=f"{value.md5}.jsonl"))
+    return await file.write_data(context, [v.model_dump() for v in value.root])
 
 
 __all__ = [
