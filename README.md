@@ -22,7 +22,7 @@ pip install aceteam-workflow-engine  # TODO: Package name to be finalized
 ```python
 import asyncio
 
-from workflow_engine import Workflow
+from workflow_engine import IntegerValue, Workflow
 import workflow_engine.nodes
 from workflow_engine.contexts import LocalContext
 from workflow_engine.execution import TopologicalExecutionAlgorithm
@@ -37,15 +37,15 @@ with open("examples/addition.json") as f:
 result = asyncio.run(algorithm.execute(
     context=context,
     workflow=workflow,
-    input={"c": -256},
+    input={"c": IntegerValue(-256)},
 )) # {'sum': 1811}
 ```
 
-Check the `examples` directory for more sample workflows:
+Check the `examples` directory for more sample workflows in JSON form:
 
-- [`addition.py/json`](./examples/addition.py): basic arithmetic operations
-- [`append.py/json`](./examples/append.py): text file manipulation
-- [`error.py/json`](./examples/error.py): graceful error handling
+- [`addition.json`](./examples/addition.json): basic arithmetic operations
+- [`append.json`](./examples/append.json): text file manipulation
+- [`error.json`](./examples/error.json): graceful error handling
 
 ## Key Features
 

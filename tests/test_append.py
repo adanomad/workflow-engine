@@ -10,7 +10,8 @@ from workflow_engine.nodes import (
 )
 
 
-def create_append_workflow():
+@pytest.fixture
+def workflow():
     """Helper function to create the append workflow."""
     return Workflow(
         nodes=[
@@ -30,18 +31,21 @@ def create_append_workflow():
     )
 
 
-def test_workflow_serialization():
+@pytest.mark.unit
+def test_workflow_serialization(workflow: Workflow):
     """Test that the append workflow can be serialized and deserialized correctly."""
-    workflow = create_append_workflow()
+    workflow_json = workflow.model_dump_json(indent=2)
+    with open("examples/append.json", "r") as f:
+        assert workflow_json == f.read()
+
     workflow_json = workflow.model_dump_json()
     deserialized_workflow = Workflow.model_validate_json(workflow_json)
     assert deserialized_workflow == workflow
 
 
 @pytest.mark.asyncio
-async def test_workflow_execution():
+async def test_workflow_execution(workflow: Workflow):
     """Test that the workflow executes correctly and produces the expected result."""
-    workflow = create_append_workflow()
     context = InMemoryContext()
     algorithm = TopologicalExecutionAlgorithm()
 

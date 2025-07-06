@@ -4,10 +4,10 @@ import os
 from typing import TypeVar
 
 from overrides import override
-from pydantic import BaseModel
 
 from ..core import (
     Context,
+    Data,
     DataMapping,
     FileValue,
     Node,
@@ -15,6 +15,7 @@ from ..core import (
     Workflow,
     WorkflowErrors,
 )
+from ..core.data import dump_data_mapping, serialize_data_mapping
 
 F = TypeVar("F", bound=FileValue)
 
@@ -115,14 +116,15 @@ class LocalContext(Context):
     ) -> DataMapping | None:
         self._idempotent_write(
             path=self.get_node_input_path(node.id),
-            data=json.dumps(input),
+            data=serialize_data_mapping(input),
         )
 
         output_path = self.get_node_output_path(node.id)
         if os.path.exists(output_path):
             with open(output_path, "r") as f:
-                output = json.load(f)
-            return output
+                output = node.output_type.model_validate_json(f.read())
+            assert isinstance(output, Data)
+            return output.to_dict()
         return None
 
     @override
@@ -149,7 +151,7 @@ class LocalContext(Context):
     ) -> DataMapping:
         self._idempotent_write(
             path=self.get_node_output_path(node.id),
-            data=json.dumps(output),
+            data=serialize_data_mapping(output),
         )
         return output
 
@@ -167,12 +169,7 @@ class LocalContext(Context):
         """
         self._idempotent_write(
             path=self.workflow_input_path,
-            data=json.dumps(
-                {
-                    k: v.model_dump() if isinstance(v, BaseModel) else v
-                    for k, v in input.items()
-                }
-            ),
+            data=serialize_data_mapping(input),
         )
 
         self._idempotent_write(
@@ -213,7 +210,7 @@ class LocalContext(Context):
             data=json.dumps(
                 {
                     "errors": errors.model_dump(),
-                    "output": partial_output,
+                    "output": dump_data_mapping(partial_output),
                 }
             ),
         )
@@ -229,7 +226,7 @@ class LocalContext(Context):
     ) -> DataMapping:
         self._idempotent_write(
             path=self.workflow_output_path,
-            data=json.dumps(output),
+            data=serialize_data_mapping(output),
         )
         return output
 

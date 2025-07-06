@@ -1,34 +1,34 @@
 {
-    "nodes": [
-        {
-            "type": "ConstantString",
-            "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-            "params": {
-                "value": "workflow-engine"
-            }
-        },
-        {
-            "type": "Error",
-            "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-            "params": {
-                "error_name": "RuntimeError"
-            }
-        }
-    ],
-    "edges": [
-        {
-            "source_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-            "source_key": "value",
-            "target_id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-            "target_key": "info"
-        }
-    ],
-    "input_edges": [],
-    "output_edges": [
-        {
-            "source_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-            "source_key": "value",
-            "output_key": "text"
-        }
-    ]
+  "nodes": [
+    {
+      "type": "ConstantString",
+      "id": "constant",
+      "params": {
+        "value": "workflow-engine"
+      }
+    },
+    {
+      "type": "Error",
+      "id": "error",
+      "params": {
+        "error_name": "RuntimeError"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source_id": "constant",
+      "source_key": "value",
+      "target_id": "error",
+      "target_key": "info"
+    }
+  ],
+  "input_edges": [],
+  "output_edges": [
+    {
+      "source_id": "constant",
+      "source_key": "value",
+      "output_key": "text"
+    }
+  ]
 }

@@ -1,6 +1,7 @@
 # workflow_engine/core/data.py
 from collections.abc import Mapping
-from typing import TypeAlias, TypeVar
+import json
+from typing import Any, TypeAlias, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -31,6 +32,15 @@ class Data(BaseModel):
 
 DataMapping: TypeAlias = Mapping[str, Value]
 
+
+def dump_data_mapping(data: DataMapping) -> Mapping[str, Any]:
+    return {k: v.model_dump() for k, v in data.items()}
+
+
+def serialize_data_mapping(data: DataMapping) -> str:
+    return json.dumps(dump_data_mapping(data))
+
+
 Input_contra = TypeVar("Input_contra", bound=Data, contravariant=True)
 Output_co = TypeVar("Output_co", bound=Data, covariant=True)
 
@@ -40,4 +50,6 @@ __all__ = [
     "DataMapping",
     "Input_contra",
     "Output_co",
+    "dump_data_mapping",
+    "serialize_data_mapping",
 ]
