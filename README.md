@@ -75,8 +75,7 @@ Check the `examples` directory for more sample workflows in JSON form:
 src/workflow_engine/
 ├── contexts/          # Storage backend implementations
 │   ├── in_memory.py   # In-memory storage
-│   ├── local.py       # Local file system storage
-│   └── supabase.py    # Supabase storage integration
+│   └── local.py       # Local file system storage
 ├── core/              # Core workflow components
 │   ├── context.py     # Execution context
 │   ├── data.py        # Data handling
