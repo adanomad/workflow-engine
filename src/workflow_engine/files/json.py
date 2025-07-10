@@ -90,7 +90,7 @@ def cast_json_to_sequence(
     source_type: Type[JSONFileValue],
     target_type: Type[SequenceValue],
 ) -> Caster[JSONFileValue, SequenceValue]:
-    assert issubclass(target_type, JSONFileValue)
+    assert issubclass(target_type, SequenceValue)
 
     async def _cast(value: JSONFileValue, context: "Context") -> SequenceValue[Any]:
         return target_type(await value.read_data(context))
