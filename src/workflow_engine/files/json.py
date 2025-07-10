@@ -103,7 +103,7 @@ def cast_json_to_string_map(
     source_type: Type[JSONFileValue],
     target_type: Type[StringMapValue],
 ) -> Caster[JSONFileValue, StringMapValue]:
-    assert issubclass(target_type, JSONFileValue)
+    assert issubclass(target_type, StringMapValue)
 
     async def _cast(value: JSONFileValue, context: "Context") -> StringMapValue[Any]:
         return target_type(await value.read_data(context))
