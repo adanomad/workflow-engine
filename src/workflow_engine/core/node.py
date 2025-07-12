@@ -1,10 +1,11 @@
 # workflow_engine/core/node.py
+import asyncio
 import logging
 import re
 from collections.abc import Mapping
 from typing import (
     TYPE_CHECKING,
-    Any,
+    Awaitable,
     Generic,
     Type,
     TypeVar,
@@ -17,16 +18,18 @@ from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
 if TYPE_CHECKING:
     from .context import Context
-from .data import Data, Input_contra, Output_co
+from .data import Data, DataMapping, Input_contra, Output_co
 from .error import NodeException, UserException
+from .value import Value, ValueType
 
 logger = logging.getLogger(__name__)
 
 
-def get_fields(cls: type[BaseModel]) -> Mapping[str, tuple[type[Any], bool]]:
-    fields: Mapping[str, tuple[type[Any], bool]] = {}
+def get_fields(cls: type[BaseModel]) -> Mapping[str, tuple[ValueType, bool]]:
+    fields: Mapping[str, tuple[ValueType, bool]] = {}
     for k, v in cls.model_fields.items():
         assert v.annotation is not None
+        assert issubclass(v.annotation, Value)
         fields[k] = (v.annotation, v.is_required())
     return fields
 
@@ -87,11 +90,11 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
         return Empty  # type: ignore
 
     @property
-    def input_fields(self) -> Mapping[str, tuple[Type[Any], bool]]:
+    def input_fields(self) -> Mapping[str, tuple[ValueType, bool]]:
         return get_fields(self.input_type)
 
     @property
-    def output_fields(self) -> Mapping[str, tuple[Type[Any], bool]]:
+    def output_fields(self) -> Mapping[str, tuple[ValueType, bool]]:
         return get_fields(self.output_type)
 
     def __init_subclass__(cls, **kwargs: Unpack[ConfigDict]):
@@ -127,25 +130,54 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
             return cls.model_validate(self.model_dump())
         return self
 
+    async def _cast_input(self, input: DataMapping, context: "Context") -> Input_contra:  # type: ignore (contravariant return type)
+        # Validate all inputs first
+        for key, value in input.items():
+            input_type, _ = self.input_fields[key]
+            if not value.can_cast_to(input_type):
+                raise UserException(
+                    f"Input {value} for node {self.id} is invalid: {value} is not assignable to {input_type}"
+                )
+
+        # Cast all inputs in parallel
+        cast_tasks: list[Awaitable[Value]] = []
+        keys: list[str] = []
+        for key, value in input.items():
+            input_type, _ = self.input_fields[key]  # type: ignore
+            cast_tasks.append(value.cast_to(input_type, context=context))
+            keys.append(key)
+
+        casted_values = await asyncio.gather(*cast_tasks)
+
+        # Build the result dictionary
+        casted_input: dict[str, Value] = {}
+        for key, casted_value in zip(keys, casted_values):
+            casted_input[key] = casted_value
+
+        try:
+            return self.input_type.model_validate(casted_input)
+        except ValidationError as e:
+            raise UserException(
+                f"Input {casted_input} for node {self.id} is invalid: {e}"
+            )
+
     @final
     async def __call__(
         self,
         context: "Context",
-        input: Mapping[str, Any],
-    ) -> Mapping[str, Any]:
+        input: DataMapping,
+    ) -> DataMapping:
         try:
             logger.info("Starting node %s", self.id)
             output = await context.on_node_start(node=self, input=input)
             if output is not None:
                 return output
             try:
-                input_obj = self.input_type.model_validate(input)
+                input_obj = await self._cast_input(input, context)
             except ValidationError as e:
-                raise UserException(
-                    f"Input {input} for node {self.id} is invalid: {e}",
-                )
+                raise UserException(f"Input {input} for node {self.id} is invalid: {e}")
             output_obj = await self.run(context, input_obj)
-            output = output_obj.model_dump()
+            output = output_obj.to_dict()
             output = await context.on_node_finish(node=self, input=input, output=output)
             logger.info("Finished node %s", self.id)
             return output

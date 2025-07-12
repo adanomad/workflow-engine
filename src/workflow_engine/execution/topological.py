@@ -1,10 +1,10 @@
 # workflow_engine/execution/topological.py
+
 from collections.abc import Mapping
-from typing import Any
 
 from overrides import override
 
-from ..core import Context, ExecutionAlgorithm, Workflow, WorkflowErrors
+from ..core import Context, DataMapping, ExecutionAlgorithm, Workflow, WorkflowErrors
 
 
 class TopologicalExecutionAlgorithm(ExecutionAlgorithm):
@@ -19,14 +19,14 @@ class TopologicalExecutionAlgorithm(ExecutionAlgorithm):
         *,
         context: Context,
         workflow: Workflow,
-        input: Mapping[str, Any],
-    ) -> tuple[WorkflowErrors, Mapping[str, Any]]:
+        input: DataMapping,
+    ) -> tuple[WorkflowErrors, DataMapping]:
         result = await context.on_workflow_start(workflow=workflow, input=input)
         if result is not None:
             # TODO: maybe retry workflows that have failed
             return result
 
-        node_outputs: Mapping[str, Mapping[str, Any]] = {}
+        node_outputs: Mapping[str, DataMapping] = {}
         errors = WorkflowErrors()
 
         try:

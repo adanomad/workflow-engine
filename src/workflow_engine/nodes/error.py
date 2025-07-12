@@ -7,17 +7,18 @@ from ..core import (
     Data,
     Empty,
     Node,
+    StringValue,
     Params,
     UserException,
 )
 
 
 class ErrorInput(Data):
-    info: str
+    info: StringValue
 
 
 class ErrorParams(Params):
-    error_name: str
+    error_name: StringValue
 
 
 class ErrorNode(Node[ErrorInput, Empty, ErrorParams]):
@@ -36,7 +37,7 @@ class ErrorNode(Node[ErrorInput, Empty, ErrorParams]):
 
     @classmethod
     def from_name(cls, node_id: str, name: str) -> "ErrorNode":
-        return cls(id=node_id, params=ErrorParams(error_name=name))
+        return cls(id=node_id, params=ErrorParams(error_name=StringValue(name)))
 
 
 __all__ = [

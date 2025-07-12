@@ -1,7 +1,13 @@
+# workflow_engine/core/value.py
+import asyncio
+from functools import cached_property
+from hashlib import md5
+import inspect
 from collections.abc import Mapping, Sequence
 from logging import getLogger
 from typing import (
     TYPE_CHECKING,
+    Awaitable,
     ClassVar,
     Generic,
     Protocol,
@@ -66,13 +72,15 @@ TargetType = TypeVar("TargetType", bound="Value")
 class Caster(Protocol, Generic[SourceType, TargetType]):  # type: ignore
     """
     A caster is a contextual function that transforms the type of a Value.
+
+    May be either a sync or async function.
     """
 
     def __call__(
         self,
         value: SourceType,
         context: "Context",
-    ) -> TargetType: ...
+    ) -> TargetType | Awaitable[TargetType]: ...
 
 
 class GenericCaster(Protocol, Generic[SourceType, TargetType]):  # type: ignore
@@ -193,7 +201,7 @@ class Value(RootModel[T], Generic[T]):
         return wrap
 
     @classmethod
-    def get_caster(cls, t: Type[V]) -> Caster | None:
+    def get_caster(cls, t: Type[V]) -> Caster[Self, V] | None:
         converters = cls._get_casters()
         target_origin, _ = get_origin_and_args(t)
         if target_origin.__name__ in converters:
@@ -203,7 +211,7 @@ class Value(RootModel[T], Generic[T]):
                 return caster
 
         if issubclass(cls, t):
-            return lambda value, context: value
+            return lambda value, context: value  # type: ignore
 
         return None
 
@@ -222,7 +230,7 @@ class Value(RootModel[T], Generic[T]):
     def __hash__(self):
         return hash(self.root)
 
-    def cast_to(self, t: Type[V], *, context: "Context") -> V:
+    async def cast_to(self, t: Type[V], *, context: "Context") -> V:
         key = get_value_type_key(t)
         if key in self._cast_cache:
             casted: V = self._cast_cache[key]  # type: ignore
@@ -230,18 +238,40 @@ class Value(RootModel[T], Generic[T]):
 
         cast_fn = self.__class__.get_caster(t)
         if cast_fn is not None:
-            casted: V = cast_fn(self, context)  # type: ignore
+            result = cast_fn(self, context)
+            casted: V = (await result) if inspect.iscoroutine(result) else result  # type: ignore
             self._cast_cache[key] = casted
             return casted
 
         raise ValueError(f"Cannot convert {self} to {t}")
 
     @classmethod
-    def cast_from(cls, v: "Value", *, context: "Context") -> Self:
-        return v.cast_to(cls, context=context)
+    async def cast_from(cls, v: "Value", *, context: "Context") -> Self:
+        return await v.cast_to(cls, context=context)
+
+    def __str__(self) -> str:
+        return str(self.root)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.root})"
+
+    def __bool__(self) -> bool:
+        return bool(self.root)
+
+    @cached_property
+    def md5(self) -> str:
+        return md5(str(self).encode()).hexdigest()
 
 
-class StringValue(Value[str]):
+################################################################################
+# JSON types
+
+
+class NullValue(Value[None]):
+    pass
+
+
+class BooleanValue(Value[bool]):
     pass
 
 
@@ -253,7 +283,7 @@ class FloatValue(Value[float]):
     pass
 
 
-class NullValue(Value[None]):
+class StringValue(Value[str]):
     pass
 
 
@@ -265,14 +295,31 @@ class StringMapValue(Value[Mapping[str, V]], Generic[V]):
     pass
 
 
-@Value.register_cast_to(StringValue)
-def cast_any_to_string(value: "Value", context: "Context") -> StringValue:
-    return StringValue(root=value.model_dump_json())
-
-
 @IntegerValue.register_cast_to(FloatValue)
 def cast_integer_to_float(value: IntegerValue, context: "Context") -> FloatValue:
-    return FloatValue(root=float(value.root))
+    return FloatValue(float(value.root))
+
+
+@FloatValue.register_cast_to(IntegerValue)
+def cast_float_to_integer(value: FloatValue, context: "Context") -> IntegerValue:
+    """
+    Convert a float to an integer only if the float is already an integer.
+    Otherwise, raise a ValueError.
+    """
+    if value.root.is_integer():
+        return IntegerValue(int(value.root))
+    else:
+        raise ValueError(f"Cannot convert {value} to {IntegerValue}")
+
+
+@Value.register_cast_to(StringValue)
+def cast_value_to_string(value: Value, context: "Context") -> StringValue:
+    return StringValue(str(value.root))
+
+
+@StringValue.register_cast_to(BooleanValue)
+def cast_string_to_boolean(value: StringValue, context: "Context") -> BooleanValue:
+    return BooleanValue.model_validate_json(value.root)
 
 
 @StringValue.register_cast_to(IntegerValue)
@@ -298,13 +345,14 @@ def cast_sequence_to_sequence(
     if not source_item_type.can_cast_to(target_item_type):
         return None
 
-    def _cast(value: source_type, context: "Context") -> target_type:
-        return target_type(
-            root=[
-                x.cast_to(target_item_type, context=context)  # type: ignore
-                for x in value.root
-            ]
-        )
+    async def _cast(value: source_type, context: "Context") -> target_type:
+        # Cast all items in parallel
+        cast_tasks = [
+            x.cast_to(target_item_type, context=context)  # type: ignore
+            for x in value.root
+        ]
+        casted_items = await asyncio.gather(*cast_tasks)
+        return target_type(casted_items)  # type: ignore
 
     return _cast
 
@@ -322,12 +370,27 @@ def cast_string_map_to_string_map(
     if not source_value_type.can_cast_to(target_value_type):
         return None
 
-    def _cast(value: source_type, context: "Context") -> target_type:
-        return target_type(
-            root={
-                k: v.cast_to(target_value_type, context=context)  # type: ignore
-                for k, v in value.root.items()
-            }
-        )
+    async def _cast(value: source_type, context: "Context") -> target_type:
+        # Cast all values in parallel
+        items = list(value.root.items())
+        keys = [k for k, v in items]
+        cast_tasks = [
+            v.cast_to(target_value_type, context=context)  # type: ignore
+            for k, v in items
+        ]
+        casted_values = await asyncio.gather(*cast_tasks)
+        return target_type(dict(zip(keys, casted_values)))  # type: ignore
 
     return _cast
+
+
+__all__ = [
+    "BooleanValue",
+    "FloatValue",
+    "IntegerValue",
+    "NullValue",
+    "SequenceValue",
+    "StringMapValue",
+    "StringValue",
+    "Value",
+]

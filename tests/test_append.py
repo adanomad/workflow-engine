@@ -1,22 +1,23 @@
 import pytest
 
-from workflow_engine import InputEdge, OutputEdge, Workflow
+from workflow_engine import File, InputEdge, OutputEdge, StringValue, Workflow
 from workflow_engine.contexts import InMemoryContext
-from workflow_engine.files import TextFile
 from workflow_engine.execution import TopologicalExecutionAlgorithm
+from workflow_engine.files import TextFileValue
 from workflow_engine.nodes import (
     AppendToFileNode,
     AppendToFileParams,
 )
 
 
-def create_append_workflow():
+@pytest.fixture
+def workflow():
     """Helper function to create the append workflow."""
     return Workflow(
         nodes=[
             append := AppendToFileNode(
-                id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-                params=AppendToFileParams(suffix="_append"),
+                id="append",
+                params=AppendToFileParams(suffix=StringValue("_append")),
             ),
         ],
         edges=[],
@@ -30,27 +31,30 @@ def create_append_workflow():
     )
 
 
-def test_workflow_serialization():
+@pytest.mark.unit
+def test_workflow_serialization(workflow: Workflow):
     """Test that the append workflow can be serialized and deserialized correctly."""
-    workflow = create_append_workflow()
+    workflow_json = workflow.model_dump_json(indent=2)
+    with open("examples/append.json", "r") as f:
+        assert workflow_json == f.read()
+
     workflow_json = workflow.model_dump_json()
     deserialized_workflow = Workflow.model_validate_json(workflow_json)
     assert deserialized_workflow == workflow
 
 
 @pytest.mark.asyncio
-async def test_workflow_execution():
+async def test_workflow_execution(workflow: Workflow):
     """Test that the workflow executes correctly and produces the expected result."""
-    workflow = create_append_workflow()
     context = InMemoryContext()
     algorithm = TopologicalExecutionAlgorithm()
 
     # Create input with a text file
     hello_world = "Hello, world!"
-    input_file = TextFile(path="test.txt")
+    input_file = TextFileValue(File(path="test.txt"))
     input_file = await input_file.write_text(context, text=hello_world)
 
-    appended_text = "This text will be appended to the file."
+    appended_text = StringValue("This text will be appended to the file.")
     errors, output = await algorithm.execute(
         context=context,
         workflow=workflow,
@@ -64,7 +68,8 @@ async def test_workflow_execution():
     assert not errors.any()
 
     # Verify the output file exists and has the correct content
-    output_file = TextFile.model_validate(output["file"])
-    assert output_file.path == "test_append.txt"
+    output_file = output["file"]
+    assert isinstance(output_file, TextFileValue)
+    assert output_file.root.path == "test_append.txt"
     output_text = await output_file.read_text(context)
-    assert output_text == hello_world + appended_text
+    assert output_text == hello_world + appended_text.root

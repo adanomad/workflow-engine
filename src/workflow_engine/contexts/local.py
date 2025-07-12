@@ -1,16 +1,23 @@
 # workflow_engine/contexts/local.py
 import json
 import os
-from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import TypeVar
 
-from pydantic import BaseModel
+from overrides import override
 
-from workflow_engine.core.error import UserException, WorkflowErrors
+from ..core import (
+    Context,
+    Data,
+    DataMapping,
+    FileValue,
+    Node,
+    UserException,
+    Workflow,
+    WorkflowErrors,
+)
+from ..core.data import dump_data_mapping, serialize_data_mapping
 
-from ..core import Context, File, Node, Workflow
-
-F = TypeVar("F", bound=File)
+F = TypeVar("F", bound=FileValue)
 
 
 class LocalContext(Context):
@@ -71,83 +78,90 @@ class LocalContext(Context):
     def get_node_output_path(self, node_id: str) -> str:
         return os.path.join(self.output_dir, f"{node_id}.json")
 
+    @override
     async def read(
         self,
-        file: File,
+        file: FileValue,
     ) -> bytes:
-        path = self.get_file_path(file.path)
+        path = self.get_file_path(file.root.path)
         if not os.path.exists(path):
-            raise UserException(f"File {file.path} not found")
+            raise UserException(f"File {file.root.path} not found")
         try:
             with open(path, "rb") as f:
                 return f.read()
         except Exception as e:
-            raise UserException(f"Failed to read file {file.path}") from e
+            raise UserException(f"Failed to read file {file.root.path}") from e
 
+    @override
     async def write(
         self,
         file: F,
         content: bytes,
     ) -> F:
-        path = self.get_file_path(file.path)
+        path = self.get_file_path(file.root.path)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         try:
             with open(path, "wb") as f:
                 f.write(content)
         except Exception as e:
-            raise UserException(f"Failed to write file {file.path}") from e
+            raise UserException(f"Failed to write file {file.root.path}") from e
         return file
 
+    @override
     async def on_node_start(
         self,
         *,
         node: Node,
-        input: Mapping[str, Any],
-    ) -> Mapping[str, Any] | None:
+        input: DataMapping,
+    ) -> DataMapping | None:
         self._idempotent_write(
             path=self.get_node_input_path(node.id),
-            data=json.dumps(input),
+            data=serialize_data_mapping(input),
         )
 
         output_path = self.get_node_output_path(node.id)
         if os.path.exists(output_path):
             with open(output_path, "r") as f:
-                output = json.load(f)
-            return output
+                output = node.output_type.model_validate_json(f.read())
+            assert isinstance(output, Data)
+            return output.to_dict()
         return None
 
+    @override
     async def on_node_error(
         self,
         *,
         node: Node,
-        input: Mapping[str, Any],
+        input: DataMapping,
         exception: Exception,
-    ) -> Exception | Mapping[str, Any]:
+    ) -> Exception | DataMapping:
         self._idempotent_write(
             path=self.node_error_path(node.id),
             data=json.dumps(exception),
         )
         return exception
 
+    @override
     async def on_node_finish(
         self,
         *,
         node: Node,
-        input: Mapping[str, Any],
-        output: Mapping[str, Any],
-    ) -> Mapping[str, Any]:
+        input: DataMapping,
+        output: DataMapping,
+    ) -> DataMapping:
         self._idempotent_write(
             path=self.get_node_output_path(node.id),
-            data=json.dumps(output),
+            data=serialize_data_mapping(output),
         )
         return output
 
+    @override
     async def on_workflow_start(
         self,
         *,
         workflow: Workflow,
-        input: Mapping[str, Any],
-    ) -> tuple[WorkflowErrors, Mapping[str, Any]] | None:
+        input: DataMapping,
+    ) -> tuple[WorkflowErrors, DataMapping] | None:
         """
         Triggered when a workflow is started.
         If the context already knows what the node's output will be, it can
@@ -155,12 +169,7 @@ class LocalContext(Context):
         """
         self._idempotent_write(
             path=self.workflow_input_path,
-            data=json.dumps(
-                {
-                    k: v.model_dump() if isinstance(v, BaseModel) else v
-                    for k, v in input.items()
-                }
-            ),
+            data=serialize_data_mapping(input),
         )
 
         self._idempotent_write(
@@ -187,35 +196,37 @@ class LocalContext(Context):
 
         return None
 
+    @override
     async def on_workflow_error(
         self,
         *,
         workflow: Workflow,
-        input: Mapping[str, Any],
+        input: DataMapping,
         errors: WorkflowErrors,
-        partial_output: Mapping[str, Any],
-    ) -> tuple[WorkflowErrors, Mapping[str, Any]]:
+        partial_output: DataMapping,
+    ) -> tuple[WorkflowErrors, DataMapping]:
         self._idempotent_write(
             path=self.workflow_error_path,
             data=json.dumps(
                 {
                     "errors": errors.model_dump(),
-                    "output": partial_output,
+                    "output": dump_data_mapping(partial_output),
                 }
             ),
         )
         return errors, partial_output
 
+    @override
     async def on_workflow_finish(
         self,
         *,
         workflow: Workflow,
-        input: Mapping[str, Any],
-        output: Mapping[str, Any],
-    ) -> Mapping[str, Any]:
+        input: DataMapping,
+        output: DataMapping,
+    ) -> DataMapping:
         self._idempotent_write(
             path=self.workflow_output_path,
-            data=json.dumps(output),
+            data=serialize_data_mapping(output),
         )
         return output
 

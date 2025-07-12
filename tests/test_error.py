@@ -5,6 +5,7 @@ import pytest
 from workflow_engine import (
     Edge,
     OutputEdge,
+    StringValue,
     UserException,
     Workflow,
     WorkflowErrors,
@@ -14,16 +15,17 @@ from workflow_engine.execution import TopologicalExecutionAlgorithm
 from workflow_engine.nodes import ConstantStringNode, ErrorNode
 
 
-def create_error_workflow():
+@pytest.fixture
+def workflow():
     """Helper function to create the error workflow."""
     return Workflow(
         nodes=[
             constant := ConstantStringNode.from_value(
-                node_id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                node_id="constant",
                 value="workflow-engine",
             ),
             error := ErrorNode.from_name(
-                node_id="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+                node_id="error",
                 name="RuntimeError",
             ),
         ],
@@ -46,18 +48,20 @@ def create_error_workflow():
     )
 
 
-def test_workflow_serialization():
+@pytest.mark.unit
+def test_workflow_serialization(workflow: Workflow):
     """Test that the error workflow can be serialized and deserialized correctly."""
-    workflow = create_error_workflow()
-    workflow_json = workflow.model_dump_json()
+    workflow_json = workflow.model_dump_json(indent=2)
+    with open("examples/error.json", "r") as f:
+        assert workflow_json == f.read()
+
     deserialized_workflow = Workflow.model_validate_json(workflow_json)
     assert deserialized_workflow == workflow
 
 
 @pytest.mark.asyncio
-async def test_workflow_error_handling():
+async def test_workflow_error_handling(workflow: Workflow):
     """Test that the workflow properly handles errors and calls context callbacks."""
-    workflow = create_error_workflow()
     context = InMemoryContext()
 
     # Create a mock for on_node_error while preserving the original function
@@ -81,7 +85,7 @@ async def test_workflow_error_handling():
     )
 
     # Verify the output still contains the constant value
-    assert output == {"text": "workflow-engine"}
+    assert output == {"text": StringValue("workflow-engine")}
 
     # Verify on_node_error was called with the correct arguments
     mock_on_node_error.assert_called_once()

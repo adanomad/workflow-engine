@@ -2,8 +2,8 @@
 
 from pydantic import BaseModel, ConfigDict
 
-from ..utils.assign import is_assignable
 from .node import Node
+from .value import Value, ValueType
 
 
 class Edge(BaseModel):
@@ -51,15 +51,11 @@ class Edge(BaseModel):
             )
 
         source_output_type, _ = source.output_fields[self.source_key]
+        assert issubclass(source_output_type, Value)
         target_input_type, _ = target.input_fields[self.target_key]
+        assert issubclass(target_input_type, Value)
 
-        # NOTE: since we're dealing with immutable data rather than functions,
-        # covariance is almost always what we want here
-        if not is_assignable(
-            source_output_type,
-            target_input_type,
-            covariant=True,
-        ):
+        if not source_output_type.can_cast_to(target_input_type):
             raise TypeError(
                 f"Edge from {source.id}.{self.source_key} to {target.id}.{self.target_key} has invalid types: {source_output_type} is not assignable to {target_input_type}"
             )
@@ -103,21 +99,16 @@ class InputEdge(BaseModel):
             target_key=target_key,
         )
 
-    def validate_types(self, input_type: type, target: Node):
+    def validate_types(self, input_type: ValueType, target: Node):
         if self.target_key not in target.input_fields:
             raise ValueError(
                 f"Target node {target.id} does not have a {self.target_key} field"
             )
 
         target_input_type, _ = target.input_fields[self.target_key]
+        assert issubclass(target_input_type, Value)
 
-        # NOTE: since we're dealing with immutable data rather than functions,
-        # covariance is almost always what we want here
-        if not is_assignable(
-            input_type,
-            target_input_type,
-            covariant=True,
-        ):
+        if not input_type.can_cast_to(target_input_type):
             raise TypeError(
                 f"Input edge to {target.id}.{self.target_key} has invalid types: {input_type} is not assignable to {target_input_type}"
             )
@@ -149,21 +140,16 @@ class OutputEdge(BaseModel):
             output_key=output_key,
         )
 
-    def validate_types(self, source: Node, output_type: type):
+    def validate_types(self, source: Node, output_type: ValueType):
         if self.source_key not in source.output_fields:
             raise ValueError(
                 f"Source node {source.id} does not have a {self.source_key} field"
             )
 
         source_output_type, _ = source.output_fields[self.source_key]
+        assert issubclass(source_output_type, Value)
 
-        # NOTE: since we're dealing with immutable data rather than functions,
-        # covariance is almost always what we want here
-        if not is_assignable(
-            source_output_type,
-            output_type,
-            covariant=True,
-        ):
+        if not source_output_type.can_cast_to(output_type):
             raise TypeError(
                 f"Output edge from {source.id}.{self.source_key} has invalid types: {source_output_type} is not assignable to {output_type}"
             )

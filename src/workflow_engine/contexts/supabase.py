@@ -1,15 +1,23 @@
 # workflow_engine/contexts/supabase.py
-from collections.abc import Mapping
-from typing import Any, TypeVar
+from typing import TypeVar
 
+from overrides import override
 from supabase import create_client
 
-from ..core import Context, File, Node, UserException, Workflow, WorkflowErrors
+from ..core import (
+    Context,
+    DataMapping,
+    FileValue,
+    Node,
+    UserException,
+    Workflow,
+    WorkflowErrors,
+)
 from ..utils.env import get_env
 from ..utils.iter import only
 from ..utils.uuid import is_valid_uuid
 
-F = TypeVar("F", bound=File)
+F = TypeVar("F", bound=FileValue)
 
 
 class SupabaseContext(Context):
@@ -92,32 +100,31 @@ class SupabaseContext(Context):
     def workflow_node_runs_table(self):
         return self.supabase.table(self.workflow_node_runs_table_name)
 
-    def get_env(self, key: str, default: str | None = None) -> str:
-        return get_env(key, default=default)
-
-    def get_file_id(self, file: File) -> str | None:
-        if "file_id" in file.metadata:
-            file_id = file.metadata["file_id"]
+    def get_file_id(self, file: FileValue) -> str | None:
+        if "file_id" in file.root.metadata:
+            file_id = file.root.metadata["file_id"]
             assert isinstance(file_id, str)
             return file_id
-        elif is_valid_uuid(file.path):
-            return file.path
+        elif is_valid_uuid(file.root.path):
+            return file.root.path
         else:
             return None
 
+    @override
     async def read(
         self,
-        file: File,
+        file: FileValue,
     ) -> bytes:
         file_id = self.get_file_id(file)
         if file_id is None:
-            raise UserException(f"File {file.path} not found")
+            raise UserException(f"File {file.root.path} not found")
         try:
             content = self.file_bucket.download(f"{self.user_id}/{file_id}")
         except Exception as e:
-            raise UserException(f"Failed to read file {file.path}") from e
+            raise UserException(f"Failed to read file {file.root.path}") from e
         return content
 
+    @override
     async def write(
         self,
         file: F,
@@ -125,8 +132,8 @@ class SupabaseContext(Context):
     ) -> F:
         insert_dict = {
             "user": self.user_id,
-            "title": f"{self.run_id}/{file.path}",
-            "file_type": file.mime_type,
+            "title": f"{self.run_id}/{file.root.path}",
+            "file_type": file.root.mime_type,
             "file_size": len(content),
         }
         if (file_id := self.get_file_id(file)) is not None:
@@ -136,27 +143,28 @@ class SupabaseContext(Context):
             file_id = only(response.data)["id"]
         except Exception as e:
             raise UserException(
-                f"Failed to create file metadata for {file.path}"
+                f"Failed to create file metadata for {file.root.path}"
             ) from e
         try:
             self.file_bucket.upload(
                 path=f"{self.user_id}/{file_id}",
                 file=content,
                 file_options={
-                    "content-type": file.mime_type,
+                    "content-type": file.root.mime_type,
                     "upsert": "true" if self.overwrites_allowed else "false",
                 },
             )
         except Exception as e:
-            raise UserException(f"Failed to write file {file.path}") from e
+            raise UserException(f"Failed to write file {file.root.path}") from e
         return file.write_metadata("file_id", file_id)
 
+    @override
     async def on_node_start(
         self,
         *,
         node: Node,
-        input: Mapping[str, Any],
-    ) -> Mapping[str, Any] | None:
+        input: DataMapping,
+    ) -> DataMapping | None:
         """
         A hook that is called when a node starts execution.
 
@@ -186,13 +194,14 @@ class SupabaseContext(Context):
         ).execute()
         return None
 
+    @override
     async def on_node_error(
         self,
         *,
         node: "Node",
-        input: Mapping[str, Any],
+        input: DataMapping,
         exception: Exception,
-    ) -> Exception | Mapping[str, Any]:
+    ) -> Exception | DataMapping:
         """
         A hook that is called when a node finishes execution.
         """
@@ -214,13 +223,14 @@ class SupabaseContext(Context):
         )
         return exception
 
+    @override
     async def on_node_finish(
         self,
         *,
         node: "Node",
-        input: Mapping[str, Any],
-        output: Mapping[str, Any],
-    ) -> Mapping[str, Any]:
+        input: DataMapping,
+        output: DataMapping,
+    ) -> DataMapping:
         """
         A hook that is called when a node finishes execution.
         """
@@ -237,12 +247,13 @@ class SupabaseContext(Context):
         )
         return output
 
+    @override
     async def on_workflow_start(
         self,
         *,
         workflow: Workflow,
-        input: Mapping[str, Any],
-    ) -> tuple[WorkflowErrors, Mapping[str, Any]] | None:
+        input: DataMapping,
+    ) -> tuple[WorkflowErrors, DataMapping] | None:
         """
         A hook that is called when a workflow starts execution.
 
@@ -277,14 +288,15 @@ class SupabaseContext(Context):
         ).execute()
         return None
 
+    @override
     async def on_workflow_error(
         self,
         *,
         workflow: "Workflow",
-        input: Mapping[str, Any],
+        input: DataMapping,
         errors: WorkflowErrors,
-        partial_output: Mapping[str, Any],
-    ) -> tuple[WorkflowErrors, Mapping[str, Any]]:
+        partial_output: DataMapping,
+    ) -> tuple[WorkflowErrors, DataMapping]:
         (
             self.workflow_runs_table.update(
                 {
@@ -298,13 +310,14 @@ class SupabaseContext(Context):
         )
         return errors, partial_output
 
+    @override
     async def on_workflow_finish(
         self,
         *,
         workflow: "Workflow",
-        input: Mapping[str, Any],
-        output: Mapping[str, Any],
-    ) -> Mapping[str, Any]:
+        input: DataMapping,
+        output: DataMapping,
+    ) -> DataMapping:
         """
         A hook that is called when a workflow finishes execution.
         """

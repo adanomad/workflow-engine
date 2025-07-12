@@ -1,49 +1,58 @@
 # workflow_engine/nodes/constant.py
 from typing import Literal, Type
 
-from ..core import Context, Data, Empty, Node, Params
+from ..core import (
+    BooleanValue,
+    Context,
+    Data,
+    Empty,
+    IntegerValue,
+    Node,
+    Params,
+    StringValue,
+)
 
 
-class ConstantBool(Params):
-    value: bool
+class ConstantBoolean(Params):
+    value: BooleanValue
 
 
-class ConstantBoolNode(Node[Empty, ConstantBool, ConstantBool]):
-    type: Literal["ConstantBool"] = "ConstantBool"
+class ConstantBooleanNode(Node[Empty, ConstantBoolean, ConstantBoolean]):
+    type: Literal["ConstantBoolean"] = "ConstantBoolean"
 
     @property
-    def output_type(self):
-        return ConstantBool
+    def output_type(self) -> Type[ConstantBoolean]:
+        return ConstantBoolean
 
-    async def run(self, context: Context, input: Empty) -> ConstantBool:
+    async def run(self, context: Context, input: Empty) -> ConstantBoolean:
         return self.params
 
     @classmethod
-    def from_value(cls, node_id: str, value: bool) -> "ConstantBoolNode":
-        return cls(id=node_id, params=ConstantBool(value=value))
+    def from_value(cls, node_id: str, value: bool) -> "ConstantBooleanNode":
+        return cls(id=node_id, params=ConstantBoolean(value=BooleanValue(value)))
 
 
-class ConstantInt(Params):
-    value: int
+class ConstantInteger(Params):
+    value: IntegerValue
 
 
-class ConstantIntNode(Node[Empty, ConstantInt, ConstantInt]):
-    type: Literal["ConstantInt"] = "ConstantInt"
+class ConstantIntegerNode(Node[Empty, ConstantInteger, ConstantInteger]):
+    type: Literal["ConstantInteger"] = "ConstantInteger"
 
     @property
-    def output_type(self):
-        return ConstantInt
+    def output_type(self) -> Type[ConstantInteger]:
+        return ConstantInteger
 
-    async def run(self, context: Context, input: Empty) -> ConstantInt:
+    async def run(self, context: Context, input: Empty) -> ConstantInteger:
         return self.params
 
     @classmethod
-    def from_value(cls, node_id: str, value: int) -> "ConstantIntNode":
-        return cls(id=node_id, params=ConstantInt(value=value))
+    def from_value(cls, node_id: str, value: int) -> "ConstantIntegerNode":
+        return cls(id=node_id, params=ConstantInteger(value=IntegerValue(value)))
 
 
 class ConstantString(Params):
-    value: str
+    value: StringValue
 
 
 class ConstantStringNode(Node[Empty, ConstantString, ConstantString]):
@@ -54,18 +63,18 @@ class ConstantStringNode(Node[Empty, ConstantString, ConstantString]):
         return ConstantString
 
     async def run(self, context: Context, input: Data) -> ConstantString:
-        return ConstantString(value=self.params.value)
+        return self.params
 
     @classmethod
     def from_value(cls, node_id: str, value: str) -> "ConstantStringNode":
-        return cls(id=node_id, params=ConstantString(value=value))
+        return cls(id=node_id, params=ConstantString(value=StringValue(value)))
 
 
 __all__ = [
-    "ConstantBool",
-    "ConstantBoolNode",
-    "ConstantInt",
-    "ConstantIntNode",
+    "ConstantBoolean",
+    "ConstantBooleanNode",
+    "ConstantInteger",
+    "ConstantIntegerNode",
     "ConstantString",
     "ConstantStringNode",
 ]
