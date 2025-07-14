@@ -3,7 +3,7 @@
 Simple nodes for testing the workflow engine, with limited usefulness otherwise.
 """
 
-from typing import Literal, Self
+from typing import Literal, Self, Type
 
 from overrides import override
 from pydantic import ConfigDict
@@ -52,16 +52,16 @@ class IfNode(Node[ConditionalInput, Empty, IfParams]):
 
     @property
     @override
-    def input_type(self):
+    def input_type(self) -> Type[ConditionalInput]:
         fields = dict(get_data_fields(ConditionalInput))
         for key, value in self.params.if_true.input_fields.items():
             assert key not in fields
             fields[key] = (value, True)
-        return build_data_type("IfInput", fields)
+        return build_data_type("IfInput", fields, base_cls=ConditionalInput)
 
     @property
     @override
-    def output_type(self):
+    def output_type(self) -> Type[Empty]:
         return Empty
 
     @override
@@ -94,16 +94,16 @@ class IfElseNode(Node[ConditionalInput, Data, IfElseParams]):
 
     @property
     @override
-    def input_type(self):
+    def input_type(self) -> Type[ConditionalInput]:
         fields = dict(get_data_fields(ConditionalInput))
         for key, value in self.params.if_true.input_fields.items():
             assert key not in fields
             fields[key] = (value, True)
-        return build_data_type("IfElseInput", fields)
+        return build_data_type("IfElseInput", fields, base_cls=ConditionalInput)
 
     @property
     @override
-    def output_type(self):
+    def output_type(self) -> Type[Data]:
         fields = mapping_intersection(
             self.params.if_true.output_fields,
             self.params.if_false.output_fields,

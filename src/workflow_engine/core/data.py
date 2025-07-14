@@ -63,10 +63,14 @@ def get_data_fields(cls: type[Data]) -> Mapping[str, tuple[ValueType, bool]]:
     return fields
 
 
+D = TypeVar("D", bound=Data)
+
+
 def build_data_type(
     name: str,
     fields: Mapping[str, tuple[ValueType, bool]],
-) -> type[Data]:
+    base_cls: type[D] = Data,
+) -> type[D]:
     """
     Create a Data subclass whose fields are given by a mapping of field names to
     (ValueType, is_required) tuples.
@@ -89,7 +93,7 @@ def build_data_type(
     }
 
     # Create the class dynamically
-    cls = create_model(name, __base__=Data, **annotations)  # type: ignore
+    cls = create_model(name, __base__=base_cls, **annotations)  # type: ignore
 
     return cls
 
