@@ -130,13 +130,18 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
             return cls.model_validate(self.model_dump())
         return self
 
-    async def _cast_input(self, input: DataMapping, context: "Context") -> Input_contra:  # type: ignore (contravariant return type)
+    async def _cast_input(
+        self,
+        input: DataMapping,
+        context: "Context",
+    ) -> Input_contra:  # type: ignore (contravariant return type)
+        allow_extra_input = (
+            self.input_type.model_config.get("extra", "forbid") == "allow"
+        )
+
         # Validate all inputs first
         for key, value in input.items():
-            if (
-                key not in self.input_fields
-                and self.input_type.model_config.get("extra", "forbid") == "allow"
-            ):
+            if key not in self.input_fields and allow_extra_input:
                 continue
             input_type, _ = self.input_fields[key]
             if not value.can_cast_to(input_type):
@@ -148,10 +153,7 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
         cast_tasks: list[Awaitable[Value]] = []
         keys: list[str] = []
         for key, value in input.items():
-            if (
-                key not in self.input_fields
-                and self.input_type.model_config.get("extra", "forbid") == "allow"
-            ):
+            if key not in self.input_fields and allow_extra_input:
                 continue
             input_type, _ = self.input_fields[key]  # type: ignore
             cast_tasks.append(value.cast_to(input_type, context=context))
