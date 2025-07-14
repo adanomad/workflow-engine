@@ -27,6 +27,15 @@ class BuildMappingOutput(Data):
 
 
 class BuildMappingNode(Node[Data, BuildMappingOutput, BuildMappingParams]):
+    """
+    Creates a new mapping object from the inputs to this node.
+
+    Example:
+        >>> node = BuildMappingNode.from_keys("node_id", ["a", "b", "c"])
+        >>> node.run(context, input={"a": 1, "b": 2, "c": 3}).model_dump()
+        {"mapping": {"a": 1, "b": 2, "c": 3}}
+    """
+
     type: Literal["BuildMapping"] = "BuildMapping"
 
     @property
@@ -77,6 +86,15 @@ class ExtractKeyOutput(Data):
 
 
 class ExtractKeyNode(Node[ExtractKeyInput, ExtractKeyOutput, ExtractKeyParams]):
+    """
+    Extracts a value from a mapping object at a specific key.
+
+    Example:
+        >>> node = ExtractKeyNode.from_key("node_id", "a")
+        >>> node.run(context, input={"mapping": {"a": 1, "b": 2, "c": 3}}).model_dump()
+        {"value": 1}
+    """
+
     type: Literal["ExtractKey"] = "ExtractKey"
 
     @property
