@@ -7,8 +7,10 @@ from typing import (
     TYPE_CHECKING,
     Awaitable,
     Generic,
+    Self,
     Type,
     TypeVar,
+    Union,
     Unpack,
     _LiteralGenericAlias,  # type: ignore
 )
@@ -18,20 +20,18 @@ from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
 if TYPE_CHECKING:
     from .context import Context
-from .data import Data, DataMapping, Input_contra, Output_co
+    from .workflow import Workflow
+from .data import (
+    Data,
+    DataMapping,
+    Input_contra,
+    Output_co,
+    get_data_fields,
+)
 from .error import NodeException, UserException
 from .value import Value, ValueType
 
 logger = logging.getLogger(__name__)
-
-
-def get_fields(cls: type[BaseModel]) -> Mapping[str, tuple[ValueType, bool]]:
-    fields: Mapping[str, tuple[ValueType, bool]] = {}
-    for k, v in cls.model_fields.items():
-        assert v.annotation is not None
-        assert issubclass(v.annotation, Value)
-        fields[k] = (v.annotation, v.is_required())
-    return fields
 
 
 class Params(Data):
@@ -91,11 +91,11 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
 
     @property
     def input_fields(self) -> Mapping[str, tuple[ValueType, bool]]:
-        return get_fields(self.input_type)
+        return get_data_fields(self.input_type)
 
     @property
     def output_fields(self) -> Mapping[str, tuple[ValueType, bool]]:
-        return get_fields(self.output_type)
+        return get_data_fields(self.output_type)
 
     def __init_subclass__(cls, **kwargs: Unpack[ConfigDict]):
         super().__init_subclass__(**kwargs)  # type: ignore
@@ -133,6 +133,11 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
     async def _cast_input(self, input: DataMapping, context: "Context") -> Input_contra:  # type: ignore (contravariant return type)
         # Validate all inputs first
         for key, value in input.items():
+            if (
+                key not in self.input_fields
+                and self.input_type.model_config.get("extra", "forbid") == "allow"
+            ):
+                continue
             input_type, _ = self.input_fields[key]
             if not value.can_cast_to(input_type):
                 raise UserException(
@@ -143,6 +148,11 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
         cast_tasks: list[Awaitable[Value]] = []
         keys: list[str] = []
         for key, value in input.items():
+            if (
+                key not in self.input_fields
+                and self.input_type.model_config.get("extra", "forbid") == "allow"
+            ):
+                continue
             input_type, _ = self.input_fields[key]  # type: ignore
             cast_tasks.append(value.cast_to(input_type, context=context))
             keys.append(key)
@@ -166,7 +176,9 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
         self,
         context: "Context",
         input: DataMapping,
-    ) -> DataMapping:
+    ) -> Union[
+        DataMapping, "Workflow"
+    ]:  # Using Union instead of | due to Python 3.12 TypeAlias bug
         try:
             logger.info("Starting node %s", self.id)
             output = await context.on_node_start(node=self, input=input)
@@ -177,8 +189,20 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
             except ValidationError as e:
                 raise UserException(f"Input {input} for node {self.id} is invalid: {e}")
             output_obj = await self.run(context, input_obj)
-            output = output_obj.to_dict()
-            output = await context.on_node_finish(node=self, input=input, output=output)
+
+            from .workflow import Workflow  # lazy to avoid circular import
+
+            if isinstance(output_obj, Workflow):
+                output = output_obj
+                # TODO: once that workflow eventually finishes running, its
+                # output should be the output of this node, and we should call
+                # context.on_node_finish.
+            else:
+                output = await context.on_node_finish(
+                    node=self,
+                    input=input,
+                    output=output_obj.to_dict(),
+                )
             logger.info("Finished node %s", self.id)
             return output
         except Exception as e:
@@ -192,11 +216,29 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
                 )
                 return e
             else:
+                assert isinstance(e, Exception)
                 raise NodeException(self.id) from e
 
     # @abstractmethod
-    async def run(self, context: "Context", input: Input_contra) -> Output_co:
+    # Using Union instead of | due to Python 3.12 TypeAlias bug
+    async def run(
+        self,
+        context: "Context",
+        input: Input_contra,
+    ) -> Union[Output_co, "Workflow"]:
         raise NotImplementedError("Subclasses must implement this method")
+
+    def with_namespace(self, namespace: str) -> Self:
+        """
+        Create a copy of this node with a namespaced ID.
+
+        Args:
+            namespace: The namespace to prefix the node ID with
+
+        Returns:
+            A new Node with ID '{namespace}/{self.id}'
+        """
+        return self.model_copy(update={"id": f"{namespace}/{self.id}"})
 
 
 class NodeRegistry:

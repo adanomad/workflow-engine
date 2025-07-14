@@ -3,9 +3,9 @@ from collections.abc import Mapping
 import json
 from typing import Any, TypeAlias, TypeVar
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, create_model
 
-from .value import Value
+from .value import Value, ValueType
 
 
 class Data(BaseModel):
@@ -45,11 +45,62 @@ Input_contra = TypeVar("Input_contra", bound=Data, contravariant=True)
 Output_co = TypeVar("Output_co", bound=Data, covariant=True)
 
 
+def get_data_fields(cls: type[Data]) -> Mapping[str, tuple[ValueType, bool]]:
+    """
+    Extract the fields of a Data subclass.
+
+    Args:
+        cls: The Data subclass to extract fields from
+
+    Returns:
+        A mapping of field names to (ValueType, is_required) tuples
+    """
+    fields: Mapping[str, tuple[ValueType, bool]] = {}
+    for k, v in cls.model_fields.items():
+        assert v.annotation is not None
+        assert issubclass(v.annotation, Value)
+        fields[k] = (v.annotation, v.is_required())
+    return fields
+
+
+def build_data_type(
+    name: str,
+    fields: Mapping[str, tuple[ValueType, bool]],
+) -> type[Data]:
+    """
+    Create a Data subclass whose fields are given by a mapping of field names to
+    (ValueType, is_required) tuples.
+
+    This is the inverse of get_fields() - it constructs a class that would return
+    the same mapping when passed to get_fields().
+
+    Args:
+        name: The name of the class to create
+        fields: Mapping of field names to (ValueType, required) tuples
+        base_class: The base class to inherit from (defaults to Data)
+
+    Returns:
+        A new Pydantic BaseModel class with the specified fields
+    """
+    # Create field annotations dictionary
+    annotations: dict[str, ValueType | tuple[ValueType, Any]] = {
+        field_name: value_type if required else (value_type, None)
+        for field_name, (value_type, required) in fields.items()
+    }
+
+    # Create the class dynamically
+    cls = create_model(name, __base__=Data, **annotations)  # type: ignore
+
+    return cls
+
+
 __all__ = [
     "Data",
     "DataMapping",
     "Input_contra",
     "Output_co",
+    "build_data_type",
+    "get_data_fields",
     "dump_data_mapping",
     "serialize_data_mapping",
 ]

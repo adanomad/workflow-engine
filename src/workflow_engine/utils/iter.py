@@ -10,6 +10,16 @@ def only(it: Iterable[T]) -> T:
     return x
 
 
+def same(it: Iterable[T]) -> T:
+    it = iter(it)
+    x = next(it)
+    for y in it:
+        if x != y:
+            raise ValueError("Values are not the same")
+    return x
+
+
 __all__ = [
     "only",
+    "same",
 ]

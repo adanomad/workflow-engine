@@ -1,8 +1,12 @@
 # workflow_engine/core/error.py
 
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field
+
+if TYPE_CHECKING:
+    from .workflow import Workflow
 
 
 class UserException(RuntimeError):
@@ -41,6 +45,27 @@ class NodeException(RuntimeError):
         if isinstance(self.__cause__, UserException):
             return self.__cause__.message
         return None
+
+
+class NodeExpansionException(UserException):
+    """
+    An error that occurred while expanding a node into a workflow.
+    """
+
+    def __init__(self, node_id: str, workflow: "Workflow"):
+        super().__init__(f"Error expanding node {node_id} into the workflow {workflow}")
+        self.node_id = node_id
+        self.workflow = workflow
+
+    @property
+    def message(self) -> str | None:
+        base_message = (
+            f"Error expanding node {self.node_id} into the workflow {self.workflow}"
+        )
+        if isinstance(self.__cause__, UserException):
+            return f"{base_message}, due to {self.__cause__}."
+        else:
+            return base_message
 
 
 class WorkflowErrors(BaseModel):
@@ -88,5 +113,6 @@ class WorkflowErrors(BaseModel):
 __all__ = [
     "UserException",
     "NodeException",
+    "NodeExpansionException",
     "WorkflowErrors",
 ]

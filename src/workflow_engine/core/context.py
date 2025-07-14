@@ -95,8 +95,10 @@ class Context(ABC, EnforceOverrides):
         output: DataMapping,
     ) -> DataMapping:
         """
-        A hook that is called when a node finishes execution.
+        A hook that is called when a node finishes execution by returning a
+        DataMapping (not a Workflow).
 
+        node: the node that finished execution
         input: the input data to the node
         output: the output data from the node
 
