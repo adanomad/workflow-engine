@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
 from .data import DataMapping
 from .edge import Edge, InputEdge, OutputEdge
-from .error import UserException
+from .error import NodeExpansionException, UserException
 from .node import Node
 from .value import ValueType
 
@@ -50,19 +50,19 @@ class Workflow(BaseModel):
     @cached_property
     def input_fields(self) -> Mapping[str, ValueType]:
         return {
-            edge.source_key: self.nodes_by_id[edge.source_id].output_fields[
-                edge.source_key
+            edge.input_key: self.nodes_by_id[edge.target_id].input_fields[
+                edge.target_key
             ][0]
-            for edge in self.edges
+            for edge in self.input_edges
         }
 
     @cached_property
     def output_fields(self) -> Mapping[str, ValueType]:
         return {
-            edge.target_key: self.nodes_by_id[edge.target_id].input_fields[
-                edge.target_key
+            edge.output_key: self.nodes_by_id[edge.source_id].output_fields[
+                edge.source_key
             ][0]
-            for edge in self.edges
+            for edge in self.output_edges
         }
 
     @cached_property
@@ -76,6 +76,16 @@ class Workflow(BaseModel):
             graph.add_edge(edge.source_id, edge.target_id, data=edge)
 
         return graph
+
+    @cached_property
+    def input_edges_by_key(self) -> Mapping[str, InputEdge]:
+        """Index of input edges by their input_key."""
+        return {edge.input_key: edge for edge in self.input_edges}
+
+    @cached_property
+    def output_edges_by_key(self) -> Mapping[str, OutputEdge]:
+        """Index of output edges by their output_key."""
+        return {edge.output_key: edge for edge in self.output_edges}
 
     @model_validator(mode="after")
     def _validate_nodes(self):
@@ -100,6 +110,28 @@ class Workflow(BaseModel):
         if not nx.is_directed_acyclic_graph(self.nx_graph):
             cycles = list(nx.simple_cycles(self.nx_graph))
             raise ValueError(f"Workflow graph is not a DAG. Cycles found: {cycles}")
+        return self
+
+    @model_validator(mode="after")
+    def _validate_no_id_prefix_collisions(self):
+        """
+        Ensure no node ID is a prefix of another when followed by '/'.
+
+        This prevents ID collisions when composite nodes are expanded.
+        For example, this prevents having both 'foo' and 'foo/bar' nodes.
+        """
+        node_ids = [node.id for node in self.nodes]
+        sorted_ids = sorted(node_ids)
+
+        for i in range(len(sorted_ids) - 1):
+            current = sorted_ids[i]
+            next_id = sorted_ids[i + 1]
+            if next_id.startswith(current + "/"):
+                raise ValueError(
+                    f"Node ID collision detected: '{current}' is a prefix of '{next_id}'. "
+                    f"This would cause conflicts when composite nodes are expanded. "
+                    f"Please ensure no node ID is a prefix of another when followed by '/'."
+                )
         return self
 
     def get_ready_nodes(
@@ -188,6 +220,178 @@ class Workflow(BaseModel):
             output_field = node_output[edge.source_key]
             output[edge.output_key] = output_field
         return output
+
+    def expand_node(
+        self,
+        node_id: str,
+        subgraph: "Workflow",
+    ) -> "Workflow":
+        """
+        Replace a node in this workflow with a subgraph.
+
+        This method performs graph surgery to replace a node with a subgraph.
+        The subgraph's nodes are namespaced with the original node's ID to prevent
+        ID collisions. Input and output edges are reconnected appropriately.
+
+        Args:
+            node_id: ID of the node to replace
+            subgraph: The workflow to insert in place of the node
+            node_input: The input that was passed to the original node
+
+        Returns:
+            A new Workflow with the node replaced by the subgraph
+
+        Raises:
+            ValueError: If the node_id doesn't exist or if the replacement would
+                       create an invalid graph
+        """
+        try:
+            if node_id not in self.nodes_by_id:
+                raise ValueError(f"Node {node_id} not found in workflow")
+
+            subgraph = subgraph.with_namespace(node_id)
+
+            # Collect all edges that need to be modified
+            new_nodes: list[Node] = [
+                node for node in self.nodes if node.id != node_id
+            ] + list(subgraph.nodes)
+            new_edges: list[Edge] = list(subgraph.edges)
+            new_input_edges: list[InputEdge] = []
+            new_output_edges: list[OutputEdge] = []
+
+            # Use cached properties for subgraph edge indexing
+            subgraph_input_by_key = subgraph.input_edges_by_key
+            subgraph_output_by_key = subgraph.output_edges_by_key
+
+            # Handle input edges - reconnect them to subgraph input nodes
+            for input_edge in self.input_edges:
+                if input_edge.target_id == node_id:
+                    if input_edge.target_key in subgraph_input_by_key:
+                        subgraph_input_edge = subgraph_input_by_key[
+                            input_edge.target_key
+                        ]
+                        new_input_edges.append(
+                            InputEdge(
+                                input_key=input_edge.input_key,
+                                target_id=subgraph_input_edge.target_id,
+                                target_key=subgraph_input_edge.target_key,
+                            )
+                        )
+                    # If no matching input edge found, the edge is dropped
+                else:
+                    new_input_edges.append(input_edge)
+
+            # Handle regular edges
+            for edge in self.edges:
+                if edge.target_id == node_id:
+                    if edge.target_key in subgraph_input_by_key:
+                        subgraph_input_edge = subgraph_input_by_key[edge.target_key]
+                        new_edges.append(
+                            Edge(
+                                source_id=edge.source_id,
+                                source_key=edge.source_key,
+                                target_id=subgraph_input_edge.target_id,
+                                target_key=subgraph_input_edge.target_key,
+                            )
+                        )
+                    # If no matching input edge found, the edge is dropped
+                elif edge.source_id == node_id:
+                    if edge.source_key in subgraph_output_by_key:
+                        subgraph_output_edge = subgraph_output_by_key[edge.source_key]
+                        new_edges.append(
+                            Edge(
+                                source_id=subgraph_output_edge.source_id,
+                                source_key=subgraph_output_edge.source_key,
+                                target_id=edge.target_id,
+                                target_key=edge.target_key,
+                            )
+                        )
+                    else:
+                        raise ValueError(
+                            f"Node {node_id} has output '{edge.source_key}' that is required by "
+                            f"workflow, but the subgraph does not provide a matching output edge"
+                        )
+                else:
+                    new_edges.append(edge)
+
+            # Handle output edges
+            for output_edge in self.output_edges:
+                if output_edge.source_id == node_id:
+                    if output_edge.source_key in subgraph_output_by_key:
+                        subgraph_output_edge = subgraph_output_by_key[
+                            output_edge.source_key
+                        ]
+                        new_output_edges.append(
+                            OutputEdge(
+                                source_id=subgraph_output_edge.source_id,
+                                source_key=subgraph_output_edge.source_key,
+                                output_key=output_edge.output_key,
+                            )
+                        )
+                    else:
+                        raise ValueError(
+                            f"Node {node_id} has output '{output_edge.source_key}' that is required by "
+                            f"workflow output '{output_edge.output_key}', but the subgraph does not "
+                            f"provide a matching output edge"
+                        )
+                else:
+                    new_output_edges.append(output_edge)
+
+            return Workflow(
+                nodes=new_nodes,
+                edges=new_edges,
+                input_edges=new_input_edges,
+                output_edges=new_output_edges,
+            )
+        except Exception as e:
+            raise NodeExpansionException(node_id, workflow=subgraph) from e
+
+    def with_namespace(self, namespace: str) -> "Workflow":
+        """
+        Create a copy of this workflow with all node IDs namespaced.
+
+        Args:
+            namespace: The namespace to prefix all node IDs with
+
+        Returns:
+            A new Workflow with all node IDs prefixed with '{namespace}/'
+        """
+        # Create namespaced nodes
+        namespaced_nodes = [node.with_namespace(namespace) for node in self.nodes]
+
+        # Create namespaced edges (update source_id and target_id)
+        namespaced_edges = [
+            edge.model_copy(
+                update={
+                    "source_id": f"{namespace}/{edge.source_id}",
+                    "target_id": f"{namespace}/{edge.target_id}",
+                }
+            )
+            for edge in self.edges
+        ]
+
+        # Create namespaced input edges (update target_id only)
+        namespaced_input_edges = [
+            input_edge.model_copy(
+                update={"target_id": f"{namespace}/{input_edge.target_id}"}
+            )
+            for input_edge in self.input_edges
+        ]
+
+        # Create namespaced output edges (update source_id only)
+        namespaced_output_edges = [
+            output_edge.model_copy(
+                update={"source_id": f"{namespace}/{output_edge.source_id}"}
+            )
+            for output_edge in self.output_edges
+        ]
+
+        return Workflow(
+            nodes=namespaced_nodes,
+            edges=namespaced_edges,
+            input_edges=namespaced_input_edges,
+            output_edges=namespaced_output_edges,
+        )
 
 
 __all__ = [

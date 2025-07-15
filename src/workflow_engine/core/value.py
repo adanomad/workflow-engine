@@ -345,7 +345,10 @@ def cast_sequence_to_sequence(
     if not source_item_type.can_cast_to(target_item_type):
         return None
 
-    async def _cast(value: source_type, context: "Context") -> target_type:
+    async def _cast(
+        value: source_type,  # pyright: ignore[reportInvalidTypeForm]
+        context: "Context",
+    ) -> target_type:  # pyright: ignore[reportInvalidTypeForm]
         # Cast all items in parallel
         cast_tasks = [
             x.cast_to(target_item_type, context=context)  # type: ignore
@@ -370,7 +373,10 @@ def cast_string_map_to_string_map(
     if not source_value_type.can_cast_to(target_value_type):
         return None
 
-    async def _cast(value: source_type, context: "Context") -> target_type:
+    async def _cast(
+        value: source_type,  # pyright: ignore[reportInvalidTypeForm]
+        context: "Context",
+    ) -> target_type:  # pyright: ignore[reportInvalidTypeForm]
         # Cast all values in parallel
         items = list(value.root.items())
         keys = [k for k, v in items]

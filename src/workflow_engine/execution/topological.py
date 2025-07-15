@@ -35,7 +35,13 @@ class TopologicalExecutionAlgorithm(ExecutionAlgorithm):
                 node_id, node_input = ready_nodes.popitem()
                 node = workflow.nodes_by_id[node_id]
 
-                node_outputs[node.id] = await node(context, node_input)
+                node_result = await node(context, node_input)
+                if isinstance(node_result, Workflow):
+                    workflow = workflow.expand_node(node_id, node_result)
+
+                else:
+                    node_outputs[node.id] = node_result
+
                 ready_nodes = dict(
                     workflow.get_ready_nodes(
                         input=input,
