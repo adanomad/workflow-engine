@@ -18,43 +18,43 @@ def workflow():
     """Helper function to create the addition workflow."""
     return Workflow(
         nodes=[
-            a := ConstantIntegerNode.from_value(
-                node_id="a",
-                value=42,
-            ),
-            b := ConstantIntegerNode.from_value(
-                node_id="b",
-                value=2025,
-            ),
+            a := ConstantIntegerNode.from_value(id="a", value=42),
+            b := ConstantIntegerNode.from_value(id="b", value=2025),
             a_plus_b := AddNode(id="a+b"),
             a_plus_b_plus_c := AddNode(id="a+b+c"),
         ],
         edges=[
-            Edge(
-                source_id=a.id,
+            Edge.from_nodes(
+                source=a,
                 source_key="value",
-                target_id=a_plus_b.id,
+                target=a_plus_b,
                 target_key="a",
             ),
-            Edge(
-                source_id=b.id,
+            Edge.from_nodes(
+                source=b,
                 source_key="value",
-                target_id=a_plus_b.id,
+                target=a_plus_b,
                 target_key="b",
             ),
-            Edge(
-                source_id=a_plus_b.id,
+            Edge.from_nodes(
+                source=a_plus_b,
                 source_key="sum",
-                target_id=a_plus_b_plus_c.id,
+                target=a_plus_b_plus_c,
                 target_key="a",
             ),
         ],
         input_edges=[
-            InputEdge(input_key="c", target_id=a_plus_b_plus_c.id, target_key="b"),
+            InputEdge.from_node(
+                input_key="c",
+                target=a_plus_b_plus_c,
+                target_key="b",
+            ),
         ],
         output_edges=[
-            OutputEdge(
-                source_id=a_plus_b_plus_c.id, source_key="sum", output_key="sum"
+            OutputEdge.from_node(
+                source=a_plus_b_plus_c,
+                source_key="sum",
+                output_key="sum",
             ),
         ],
     )

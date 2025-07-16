@@ -15,32 +15,40 @@ from .constant import (
     ConstantStringNode,
 )
 from .data import (
-    BuildMappingNode,
-    ExtractKeyNode,
+    ExpandDataNode,
+    ExpandMappingNode,
+    ExpandSequenceNode,
+    GatherDataNode,
+    GatherMappingNode,
+    GatherSequenceNode,
 )
 from .error import (
     ErrorNode,
-    ErrorParams,
+)
+from .iteration import (
+    ForEachNode,
 )
 from .text import (
     AppendToFileNode,
-    AppendToFileParams,
 )
 
 __all__ = [
     "AddNode",
     "AppendToFileNode",
-    "AppendToFileParams",
-    "BuildMappingNode",
-    "ExtractKeyNode",
+    "ConditionalInput",
     "ConstantBooleanNode",
     "ConstantIntegerNode",
     "ConstantStringNode",
-    "ConditionalInput",
-    "IfNode",
-    "IfElseNode",
     "ErrorNode",
-    "ErrorParams",
+    "ExpandDataNode",
+    "ExpandMappingNode",
+    "ExpandSequenceNode",
+    "ForEachNode",
     "FactorizationNode",
+    "GatherDataNode",
+    "GatherMappingNode",
+    "GatherSequenceNode",
+    "IfElseNode",
+    "IfNode",
     "SumNode",
 ]

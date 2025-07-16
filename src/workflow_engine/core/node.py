@@ -210,7 +210,7 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
         except Exception as e:
             # In subclasses, you don't have to worry about logging the error,
             # since it'll be logged here.
-            logger.exception("Error in node %s: %s", self.id, e)
+            logger.exception("Error in node %s", self.id)
             e = await context.on_node_error(node=self, input=input, exception=e)
             if isinstance(e, Mapping):
                 logger.exception(
