@@ -20,14 +20,8 @@ def workflow():
     """Helper function to create the error workflow."""
     return Workflow(
         nodes=[
-            constant := ConstantStringNode.from_value(
-                node_id="constant",
-                value="workflow-engine",
-            ),
-            error := ErrorNode.from_name(
-                node_id="error",
-                name="RuntimeError",
-            ),
+            constant := ConstantStringNode.from_value(id="constant", value="test"),
+            error := ErrorNode.from_name(id="error", name="RuntimeError"),
         ],
         edges=[
             Edge.from_nodes(
@@ -81,11 +75,11 @@ async def test_workflow_error_handling(workflow: Workflow):
     # Verify the error was captured correctly
     assert errors == WorkflowErrors(
         workflow_errors=[],
-        node_errors={error_node.id: ["RuntimeError: workflow-engine"]},
+        node_errors={error_node.id: ["RuntimeError: test"]},
     )
 
     # Verify the output still contains the constant value
-    assert output == {"text": StringValue("workflow-engine")}
+    assert output == {"text": StringValue("test")}
 
     # Verify on_node_error was called with the correct arguments
     mock_on_node_error.assert_called_once()
@@ -93,4 +87,4 @@ async def test_workflow_error_handling(workflow: Workflow):
     assert call_args.kwargs["node"] is error_node
     exception = call_args.kwargs["exception"]
     assert isinstance(exception, UserException)
-    assert exception.message == "RuntimeError: workflow-engine"
+    assert exception.message == "RuntimeError: test"

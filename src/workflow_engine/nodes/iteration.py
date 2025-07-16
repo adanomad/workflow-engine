@@ -7,36 +7,30 @@ from typing import Literal, Self, Type
 
 from overrides import override
 
-from workflow_engine.core.data import DataValue
-from workflow_engine.core.edge import Edge
-
 from ..core import (
     Context,
-    Data,
+    DataValue,
+    Edge,
     InputEdge,
     OutputEdge,
     Node,
     Params,
-    SequenceValue,
-    StringMapValue,
     Workflow,
 )
-from .data import ExpandDataNode, ExpandSequenceNode, GatherDataNode, GatherSequenceNode
+from .data import (
+    ExpandDataNode,
+    ExpandSequenceNode,
+    GatherDataNode,
+    GatherSequenceNode,
+    SequenceData,
+)
 
 
 class ForEachParams(Params):
     workflow: Workflow
 
 
-class ForEachInput(Data):
-    sequence: SequenceValue[StringMapValue]
-
-
-class ForEachOutput(Data):
-    sequence: SequenceValue[StringMapValue]
-
-
-class ForEachNode(Node[ForEachInput, ForEachOutput, ForEachParams]):
+class ForEachNode(Node[SequenceData, SequenceData, ForEachParams]):
     """
     A node that executes the internal workflow W for each item in the input
     sequence.
@@ -55,45 +49,46 @@ class ForEachNode(Node[ForEachInput, ForEachOutput, ForEachParams]):
 
     @property
     @override
-    def input_type(self) -> Type[ForEachInput]:
-        return ForEachInput
+    def input_type(self) -> Type[SequenceData]:
+        return SequenceData[DataValue[self.params.workflow.input_type]]
 
     @property
     @override
-    def output_type(self) -> Type[ForEachOutput]:
-        return ForEachOutput
+    def output_type(self) -> Type[SequenceData]:
+        return SequenceData[DataValue[self.params.workflow.output_type]]
 
     @override
-    async def run(self, context: Context, input: ForEachInput) -> Workflow:
+    async def run(self, context: Context, input: SequenceData) -> Workflow:
         N = len(input.sequence.root)
         workflow = self.params.workflow
 
         nodes: list[Node] = []
         edges: list[Edge] = []
 
-        gather = GatherSequenceNode.from_length(
-            node_id="gather",
+        expand = ExpandSequenceNode.from_length(
+            id="expand",
             length=N,
             element_type=DataValue[workflow.input_type],
         )
-        expand = ExpandSequenceNode.from_length(
-            node_id="expand",
+        gather = GatherSequenceNode.from_length(
+            id="gather",
             length=N,
             element_type=DataValue[workflow.output_type],
         )
-        nodes.append(gather)
         nodes.append(expand)
+        nodes.append(gather)
 
         for i in range(N):
-            input_adapter = GatherDataNode.from_data_type(
-                node_id=f"{i}/input_adapter",
+            namespace = f"element_{i}"
+            input_adapter = ExpandDataNode.from_data_type(
+                id="input_adapter",
                 data_type=workflow.input_type,
-            )
-            item_workflow = workflow.with_namespace(str(i))
-            output_adapter = ExpandDataNode.from_data_type(
-                node_id=f"{i}/output_adapter",
+            ).with_namespace(namespace)
+            item_workflow = workflow.with_namespace(namespace)
+            output_adapter = GatherDataNode.from_data_type(
+                id="output_adapter",
                 data_type=workflow.output_type,
-            )
+            ).with_namespace(namespace)
 
             nodes.append(input_adapter)
             nodes.extend(item_workflow.nodes)
@@ -101,39 +96,37 @@ class ForEachNode(Node[ForEachInput, ForEachOutput, ForEachParams]):
 
             edges.append(
                 Edge.from_nodes(
-                    source=gather,
-                    source_key=gather.key(i),
+                    source=expand,
+                    source_key=expand.key(i),
                     target=input_adapter,
                     target_key="data",
                 )
             )
             for input_edge in item_workflow.input_edges:
-                field_name = input_edge.target_key
                 edges.append(
                     Edge(
                         source_id=input_adapter.id,
-                        source_key=field_name,
+                        source_key=input_edge.input_key,
                         target_id=input_edge.target_id,
-                        target_key=field_name,
+                        target_key=input_edge.target_key,
                     )
                 )
             edges.extend(item_workflow.edges)
             for output_edge in item_workflow.output_edges:
-                field_name = output_edge.source_key
                 edges.append(
                     Edge(
                         source_id=output_edge.source_id,
-                        source_key=field_name,
+                        source_key=output_edge.source_key,
                         target_id=output_adapter.id,
-                        target_key=field_name,
+                        target_key=output_edge.output_key,
                     )
                 )
             edges.append(
                 Edge.from_nodes(
                     source=output_adapter,
                     source_key="data",
-                    target=expand,
-                    target_key=expand.key(i),
+                    target=gather,
+                    target_key=gather.key(i),
                 )
             )
 
@@ -149,7 +142,7 @@ class ForEachNode(Node[ForEachInput, ForEachOutput, ForEachParams]):
             ],
             output_edges=[
                 OutputEdge.from_node(
-                    source=expand,
+                    source=gather,
                     source_key="sequence",
                     output_key="sequence",
                 )
@@ -159,10 +152,10 @@ class ForEachNode(Node[ForEachInput, ForEachOutput, ForEachParams]):
     @classmethod
     def from_workflow(
         cls,
-        node_id: str,
+        id: str,
         workflow: Workflow,
     ) -> Self:
-        return cls(id=node_id, params=ForEachParams(workflow=workflow))
+        return cls(id=id, params=ForEachParams(workflow=workflow))
 
 
 __all__ = [

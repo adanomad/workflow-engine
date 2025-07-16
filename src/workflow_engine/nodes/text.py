@@ -1,14 +1,14 @@
 # workflow_engine/nodes/text.py
 import os
-from typing import Literal
+from typing import Literal, Self
 
-from workflow_engine import StringValue
 from ..core import (
     Context,
     Data,
     File,
     Node,
     Params,
+    StringValue,
 )
 from ..files import TextFileValue
 
@@ -49,8 +49,11 @@ class AppendToFileNode(Node[AppendToFileInput, AppendToFileOutput, AppendToFileP
         new_file = await new_file.write_text(context, text=new_text)
         return AppendToFileOutput(file=new_file)
 
+    @classmethod
+    def from_suffix(cls, id: str, suffix: str) -> Self:
+        return cls(id=id, params=AppendToFileParams(suffix=StringValue(suffix)))
+
 
 __all__ = [
     "AppendToFileNode",
-    "AppendToFileParams",
 ]

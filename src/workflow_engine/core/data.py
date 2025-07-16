@@ -36,10 +36,6 @@ class Data(BaseModel):
             data[key] = value
         return data
 
-    @classmethod
-    def from_dict(cls, data: Mapping[str, Value]) -> Self:
-        return cls(**data)
-
 
 DataMapping: TypeAlias = Mapping[str, Value]
 
@@ -120,6 +116,48 @@ class DataValue(Value[D], Generic[D]):
 V = TypeVar("V", bound=Value)
 
 
+@DataValue.register_generic_cast_to(DataValue)
+def cast_data_to_data(
+    source_type: type[DataValue],
+    target_type: type[DataValue],
+) -> Caster[DataValue, DataValue] | None:
+    source_origin, (source_value_type,) = get_origin_and_args(source_type)
+    assert source_origin is DataValue
+    assert issubclass(source_value_type, Data)
+
+    target_origin, (target_value_type,) = get_origin_and_args(target_type)
+    assert target_origin is DataValue
+    assert issubclass(target_value_type, Data)
+
+    source_fields = get_data_fields(source_value_type)
+    target_fields = get_data_fields(target_value_type)
+
+    for name, (target_field_type, is_required) in target_fields.items():
+        if name not in source_fields:
+            if is_required:
+                return None
+            continue
+
+        source_field_type, _ = source_fields[name]
+        if not source_field_type.can_cast_to(target_field_type):
+            return None
+
+    async def _cast(
+        value: source_type,  # pyright: ignore[reportInvalidTypeForm]
+        context: "Context",
+    ) -> target_type:  # pyright: ignore[reportInvalidTypeForm]
+        assert isinstance(value.root, source_value_type)
+
+        items = list(value.root.to_dict().items())
+        keys = [k for k, v in items]
+        cast_tasks = [v.cast_to(target_fields[k][0], context=context) for k, v in items]
+        casted_values = await asyncio.gather(*cast_tasks)
+        data_dict = dict(zip(keys, casted_values))
+        return target_type(data_dict)
+
+    return _cast
+
+
 @DataValue.register_generic_cast_to(StringMapValue)
 def cast_data_to_string_map(
     source_type: type[DataValue],
@@ -197,7 +235,7 @@ def cast_string_map_to_data(
         value: source_type,  # pyright: ignore[reportInvalidTypeForm]
         context: "Context",
     ) -> target_type:  # pyright: ignore[reportInvalidTypeForm]
-        assert isinstance(value.root, StringMapValue)
+        assert isinstance(value, StringMapValue)
 
         async def cast_field(
             field_name: str,

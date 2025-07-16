@@ -73,10 +73,10 @@ class IfNode(Node[ConditionalInput, Empty, IfParams]):
     @classmethod
     def from_workflow(
         cls,
-        node_id: str,
+        id: str,
         if_true: Workflow,
     ) -> Self:
-        return cls(id=node_id, params=IfParams(if_true=if_true))
+        return cls(id=id, params=IfParams(if_true=if_true))
 
 
 class IfElseNode(Node[ConditionalInput, Data, IfElseParams]):
@@ -117,12 +117,12 @@ class IfElseNode(Node[ConditionalInput, Data, IfElseParams]):
     @classmethod
     def from_workflows(
         cls,
-        node_id: str,
+        id: str,
         if_true: Workflow,
         if_false: Workflow,
     ) -> Self:
         return cls(
-            id=node_id,
+            id=id,
             params=IfElseParams(
                 if_true=if_true,
                 if_false=if_false,

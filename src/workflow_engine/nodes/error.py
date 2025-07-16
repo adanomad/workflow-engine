@@ -36,11 +36,10 @@ class ErrorNode(Node[ErrorInput, Empty, ErrorParams]):
         raise UserException(f"{self.params.error_name}: {input.info}")
 
     @classmethod
-    def from_name(cls, node_id: str, name: str) -> "ErrorNode":
-        return cls(id=node_id, params=ErrorParams(error_name=StringValue(name)))
+    def from_name(cls, id: str, name: str) -> "ErrorNode":
+        return cls(id=id, params=ErrorParams(error_name=StringValue(name)))
 
 
 __all__ = [
     "ErrorNode",
-    "ErrorParams",
 ]

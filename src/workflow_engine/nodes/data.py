@@ -58,7 +58,7 @@ class GatherSequenceNode(Node[Data, SequenceData, SequenceParams]):
     # For now, this field is only available when the node is constructed
     # programmatically.
     # TODO: make this available at runtime
-    _element_type: ValueType = Value
+    element_type: ValueType = Field(default=Value, exclude=True)
 
     def key(self, index: int) -> str:
         return f"element_{index}"
@@ -72,32 +72,34 @@ class GatherSequenceNode(Node[Data, SequenceData, SequenceParams]):
     def input_type(self) -> Type[Data]:
         return build_data_type(
             "GatherSequenceInput",
-            {key: (self._element_type, True) for key in self.keys},
+            {key: (self.element_type, True) for key in self.keys},
         )
 
     @property
     @override
     def output_type(self) -> Type[SequenceData]:
-        return SequenceData[self._element_type]
+        return SequenceData[self.element_type]
 
     @override
     async def run(self, context: Context, input: Data) -> SequenceData:
         input_dict = input.to_dict()
-        return SequenceData(
-            sequence=SequenceValue(root=[input_dict[key] for key in self.keys])
+        return self.output_type(
+            sequence=SequenceValue[self.element_type](
+                root=[input_dict[key] for key in self.keys]
+            )
         )
 
     @classmethod
     def from_length(
         cls,
-        node_id: str,
+        id: str,
         length: int,
         element_type: ValueType = Value,
     ) -> Self:
         return cls(
-            id=node_id,
+            id=id,
             params=SequenceParams(length=IntegerValue(root=length)),
-            _element_type=element_type,
+            element_type=element_type,
         )
 
 
@@ -112,7 +114,7 @@ class ExpandSequenceNode(Node[SequenceData, Data, SequenceParams]):
     # For now, this field is only available when the node is constructed
     # programmatically.
     # TODO: make this available at runtime
-    _element_type: ValueType = Value
+    element_type: ValueType = Value
 
     def key(self, index: int) -> str:
         return f"element_{index}"
@@ -124,14 +126,14 @@ class ExpandSequenceNode(Node[SequenceData, Data, SequenceParams]):
     @property
     @override
     def input_type(self) -> Type[SequenceData]:
-        return SequenceData[self._element_type]
+        return SequenceData[self.element_type]
 
     @property
     @override
     def output_type(self) -> Type[Data]:
         return build_data_type(
             "ExpandSequenceOutput",
-            {key: (self._element_type, True) for key in self.keys},
+            {key: (self.element_type, True) for key in self.keys},
         )
 
     @override
@@ -150,14 +152,14 @@ class ExpandSequenceNode(Node[SequenceData, Data, SequenceParams]):
     @classmethod
     def from_length(
         cls,
-        node_id: str,
+        id: str,
         length: int,
         element_type: ValueType = Value,
     ) -> Self:
         return cls(
-            id=node_id,
+            id=id,
             params=SequenceParams(length=IntegerValue(root=length)),
-            _element_type=element_type,
+            element_type=element_type,
         )
 
 
@@ -189,25 +191,25 @@ class GatherMappingNode(Node[Data, MappingData, MappingParams]):
     # For now, this field is only available when the node is constructed
     # programmatically.
     # TODO: make this serializable/deserializable
-    _value_type: ValueType = Value
+    value_type: ValueType = Value
 
     @property
     @override
     def input_type(self) -> Type[Data]:
         return build_data_type(
             "GatherMappingInput",
-            {key.root: (self._value_type, True) for key in self.params.keys.root},
+            {key.root: (self.value_type, True) for key in self.params.keys.root},
         )
 
     @property
     @override
     def output_type(self) -> Type[MappingData]:
-        return MappingData[self._value_type]
+        return MappingData[self.value_type]
 
     @override
     async def run(self, context: Context, input: Data) -> MappingData:
-        return MappingData(
-            mapping=StringMapValue(
+        return self.output_type(
+            mapping=StringMapValue[self.value_type](
                 {key.root: getattr(input, key.root) for key in self.params.keys.root}
             )
         )
@@ -215,13 +217,13 @@ class GatherMappingNode(Node[Data, MappingData, MappingParams]):
     @classmethod
     def from_keys(
         cls,
-        node_id: str,
+        id: str,
         keys: Sequence[str],
     ) -> Self:
         return cls(
-            id=node_id,
+            id=id,
             params=MappingParams(
-                keys=SequenceValue([StringValue(key) for key in keys])
+                keys=SequenceValue[StringValue]([StringValue(key) for key in keys])
             ),
         )
 
@@ -242,19 +244,19 @@ class ExpandMappingNode(Node[MappingData, Data, MappingParams]):
     # For now, this field is only available when the node is constructed
     # programmatically.
     # TODO: make this serializable/deserializable
-    _value_type: ValueType = Value
+    value_type: ValueType = Value
 
     @property
     @override
     def input_type(self) -> Type[MappingData]:
-        return MappingData[self._value_type]
+        return MappingData[self.value_type]
 
     @property
     @override
     def output_type(self) -> Type[Data]:
         return build_data_type(
             "ExpandMappingOutput",
-            {key.root: (self._value_type, True) for key in self.params.keys.root},
+            {key.root: (self.value_type, True) for key in self.params.keys.root},
         )
 
     @override
@@ -264,11 +266,11 @@ class ExpandMappingNode(Node[MappingData, Data, MappingParams]):
         )
 
     @classmethod
-    def from_keys(cls, node_id: str, keys: Sequence[str]) -> Self:
+    def from_keys(cls, id: str, keys: Sequence[str]) -> Self:
         return cls(
-            id=node_id,
+            id=id,
             params=MappingParams(
-                keys=SequenceValue([StringValue(key) for key in keys])
+                keys=SequenceValue[StringValue]([StringValue(key) for key in keys])
             ),
         )
 
@@ -304,28 +306,28 @@ class GatherDataNode(Node[Data, NestedData, Empty]):
     # For now, this field is only available when the node is constructed
     # programmatically.
     # TODO: make this serializable/deserializable
-    _data_type: Type[Data] = Field(default=Data, exclude=True)
+    data_type: Type[Data] = Field(default=Data, exclude=True)
 
     @property
     @override
     def input_type(self) -> Type[Data]:
-        return self._data_type
+        return self.data_type
 
     @property
     @override
     def output_type(self) -> Type[NestedData]:
-        return NestedData[self._data_type]
+        return NestedData[self.data_type]
 
     @override
     async def run(self, context: Context, input: Data) -> NestedData:
-        return NestedData(data=DataValue[self._data_type](root=input))
+        return NestedData[self.data_type](data=DataValue[self.data_type](root=input))
 
     @classmethod
-    def from_data_type(cls, node_id: str, data_type: Type[Data]) -> Self:
+    def from_data_type(cls, id: str, data_type: Type[Data]) -> Self:
         return cls(
-            id=node_id,
+            id=id,
             params=Empty(),
-            _data_type=data_type,
+            data_type=data_type,
         )
 
 
@@ -345,28 +347,28 @@ class ExpandDataNode(Node[NestedData, Data, Empty]):
     # For now, this field is only available when the node is constructed
     # programmatically.
     # TODO: make this serializable/deserializable
-    _data_type: Type[Data] = Field(default=Data, exclude=True)
+    data_type: Type[Data] = Field(default=Data, exclude=True)
 
     @property
     @override
     def input_type(self) -> Type[NestedData]:
-        return NestedData[self._data_type]
+        return NestedData[self.data_type]
 
     @property
     @override
     def output_type(self) -> Type[Data]:
-        return self._data_type
+        return self.data_type
 
     @override
     async def run(self, context: Context, input: NestedData) -> Data:
         return input.data.root
 
     @classmethod
-    def from_data_type(cls, node_id: str, data_type: Type[Data]) -> Self:
+    def from_data_type(cls, id: str, data_type: Type[Data]) -> Self:
         return cls(
-            id=node_id,
+            id=id,
             params=Empty(),
-            _data_type=data_type,
+            data_type=data_type,
         )
 
 

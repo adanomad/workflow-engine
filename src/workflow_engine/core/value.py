@@ -39,7 +39,6 @@ def get_origin_and_args(t: ValueType) -> tuple[ValueType, tuple[ValueType, ...]]
     returns (GenericValue, (Argument1Value, Argument2Value, ...)).
     All arguments must themselves be Value subclasses.
     """
-
     # Pydantic RootModels don't play nice with get_origin and get_args, so we
     # get the root type directly from the model fields.
     assert issubclass(t, Value)
@@ -52,8 +51,6 @@ def get_origin_and_args(t: ValueType) -> tuple[ValueType, tuple[ValueType, ...]]
     else:
         assert issubclass(origin, Value)
         assert len(args) > 0
-        for arg in args:
-            assert issubclass(arg, Value)
         return origin, tuple(args)
 
 
@@ -62,7 +59,9 @@ ValueTypeKey = TypeAliasType("ValueTypeKey", tuple[str, tuple["ValueTypeKey", ..
 
 def get_value_type_key(t: ValueType) -> ValueTypeKey:
     origin, args = get_origin_and_args(t)
-    return origin.__name__, tuple(get_value_type_key(arg) for arg in args)
+    return origin.__name__, tuple(
+        get_value_type_key(arg) if issubclass(arg, Value) else arg for arg in args
+    )
 
 
 SourceType = TypeVar("SourceType", bound="Value")

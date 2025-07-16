@@ -4,7 +4,7 @@
       "type": "ConstantString",
       "id": "constant",
       "params": {
-        "value": "workflow-engine"
+        "value": "test"
       }
     },
     {
