@@ -1,6 +1,6 @@
 # workflow_engine/nodes/conditional.py
 """
-Simple nodes for testing the workflow engine, with limited usefulness otherwise.
+Conditional nodes that run different workflows depending on a condition input.
 """
 
 from typing import Literal, Self, Type
@@ -54,9 +54,9 @@ class IfNode(Node[ConditionalInput, Empty, IfParams]):
     @override
     def input_type(self) -> Type[ConditionalInput]:
         fields = dict(get_data_fields(ConditionalInput))
-        for key, value in self.params.if_true.input_fields.items():
+        for key, field in self.params.if_true.input_fields.items():
             assert key not in fields
-            fields[key] = (value, True)
+            fields[key] = field
         return build_data_type("IfInput", fields, base_cls=ConditionalInput)
 
     @property
@@ -96,9 +96,9 @@ class IfElseNode(Node[ConditionalInput, Data, IfElseParams]):
     @override
     def input_type(self) -> Type[ConditionalInput]:
         fields = dict(get_data_fields(ConditionalInput))
-        for key, value in self.params.if_true.input_fields.items():
+        for key, field in self.params.if_true.input_fields.items():
             assert key not in fields
-            fields[key] = (value, True)
+            fields[key] = field
         return build_data_type("IfElseInput", fields, base_cls=ConditionalInput)
 
     @property
@@ -108,10 +108,7 @@ class IfElseNode(Node[ConditionalInput, Data, IfElseParams]):
             self.params.if_true.output_fields,
             self.params.if_false.output_fields,
         )
-        return build_data_type(
-            "IfElseOutput",
-            {key: (value, True) for key, value in fields.items()},
-        )
+        return build_data_type("IfElseOutput", fields)
 
     @override
     async def run(self, context: Context, input: ConditionalInput) -> Workflow:

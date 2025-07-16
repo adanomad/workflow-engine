@@ -2,11 +2,12 @@
 from collections.abc import Mapping, Sequence
 from functools import cached_property
 from itertools import chain
+from typing import Type
 
 import networkx as nx
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
-from .data import DataMapping
+from .data import Data, DataMapping, build_data_type
 from .edge import Edge, InputEdge, OutputEdge
 from .error import NodeExpansionException, UserException
 from .node import Node
@@ -48,22 +49,42 @@ class Workflow(BaseModel):
         return edges_by_target
 
     @cached_property
-    def input_fields(self) -> Mapping[str, ValueType]:
+    def input_fields(self) -> Mapping[str, tuple[ValueType, bool]]:
         return {
             edge.input_key: self.nodes_by_id[edge.target_id].input_fields[
                 edge.target_key
-            ][0]
+            ]
             for edge in self.input_edges
         }
 
     @cached_property
-    def output_fields(self) -> Mapping[str, ValueType]:
+    def output_fields(self) -> Mapping[str, tuple[ValueType, bool]]:
         return {
             edge.output_key: self.nodes_by_id[edge.source_id].output_fields[
                 edge.source_key
-            ][0]
+            ]
             for edge in self.output_edges
         }
+
+    @cached_property
+    def input_type(self) -> Type[Data]:
+        return build_data_type(
+            "WorkflowInput",
+            {
+                edge.input_key: self.input_fields[edge.input_key]
+                for edge in self.input_edges
+            },
+        )
+
+    @cached_property
+    def output_type(self) -> Type[Data]:
+        return build_data_type(
+            "WorkflowOutput",
+            {
+                edge.output_key: self.output_fields[edge.output_key]
+                for edge in self.output_edges
+            },
+        )
 
     @cached_property
     def nx_graph(self) -> nx.DiGraph:
