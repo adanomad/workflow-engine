@@ -3,7 +3,7 @@ import asyncio
 import json
 import logging
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, Generic, Self, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar
 
 from pydantic import BaseModel, ConfigDict, create_model
 

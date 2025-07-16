@@ -58,6 +58,11 @@ ValueTypeKey = TypeAliasType("ValueTypeKey", tuple[str, tuple["ValueTypeKey", ..
 
 
 def get_value_type_key(t: ValueType) -> ValueTypeKey:
+    """
+    Get a unique hashable key for a Value type.
+    If t is a generic type, recursively call `get_value_type_key` to expand any
+    Value types in the args.
+    """
     origin, args = get_origin_and_args(t)
     return origin.__name__, tuple(
         get_value_type_key(arg) if issubclass(arg, Value) else arg for arg in args
