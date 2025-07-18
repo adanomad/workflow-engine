@@ -1,9 +1,9 @@
 # workflow_engine/core/value.py
 import asyncio
-from functools import cached_property
-from hashlib import md5
 import inspect
 from collections.abc import Mapping, Sequence
+from functools import cached_property
+from hashlib import md5
 from logging import getLogger
 from typing import (
     TYPE_CHECKING,
@@ -18,6 +18,8 @@ from typing import (
 )
 
 from pydantic import ConfigDict, PrivateAttr, RootModel
+
+from ..utils.generic import get_base
 
 if TYPE_CHECKING:
     from .context import Context
@@ -137,6 +139,11 @@ class Value(RootModel[T], Generic[T]):
         # reinitialize for each subclass so it doesn't just reference the parent
         cls._casters = {}
         cls._resolved_casters = None
+
+        cls = get_base(cls)
+        name = cls.__name__
+        assert name.endswith("Value"), name
+        _value_registry.register(cls)
 
     @classmethod
     def _get_casters(cls) -> dict[str, GenericCaster]:
@@ -265,6 +272,28 @@ class Value(RootModel[T], Generic[T]):
     @cached_property
     def md5(self) -> str:
         return md5(str(self).encode()).hexdigest()
+
+
+class ValueRegistry:
+    def __init__(self):
+        self.types: dict[str, ValueType] = {}
+
+    def register(self, cls: ValueType):
+        name = cls.__name__
+        if name in self.types and cls is not self.types[name]:
+            raise ValueError(
+                f'Value type "{name}" is already registered to a different class'
+            )
+        self.types[name] = cls
+        logger.info("Registering class %s as value type", name)
+
+    def get(self, name: str) -> ValueType:
+        if name not in self.types:
+            raise ValueError(f'Value type "{name}" is not registered')
+        return self.types[name]
+
+
+_value_registry = ValueRegistry()
 
 
 ################################################################################

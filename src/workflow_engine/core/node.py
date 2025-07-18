@@ -1,7 +1,6 @@
 # workflow_engine/core/node.py
 import asyncio
 import logging
-import re
 from collections.abc import Mapping
 from typing import (
     TYPE_CHECKING,
@@ -30,6 +29,7 @@ from .data import (
 )
 from .error import NodeException, UserException
 from .value import Value, ValueType
+from ..utils.generic import get_base
 
 logger = logging.getLogger(__name__)
 
@@ -60,9 +60,6 @@ class Empty(Params):
     """
 
     pass
-
-
-generic_pattern = re.compile(r"^[a-zA-Z]\w+\[.*\]$")
 
 
 class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
@@ -100,21 +97,19 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
     def __init_subclass__(cls, **kwargs: Unpack[ConfigDict]):
         super().__init_subclass__(**kwargs)  # type: ignore
 
-        while generic_pattern.match(cls.__name__) is not None:
-            assert cls.__base__ is not None
-            cls = cls.__base__
+        cls = get_base(cls)
         name = cls.__name__
         assert name.endswith("Node"), name
         type_annotation = cls.__annotations__.get("type", None)
         if type_annotation is None or not isinstance(
             type_annotation, _LiteralGenericAlias
         ):
-            _registry.register_base(cls)
+            _node_registry.register_base(cls)
         else:
             (type_name,) = type_annotation.__args__
             assert isinstance(type_name, str), type_name
             assert type_name == name.removesuffix("Node")
-            _registry.register(type_name, cls)
+            _node_registry.register(type_name, cls)
 
     @model_validator(mode="after")  # type: ignore
     def _to_subclass(self):
@@ -123,8 +118,8 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
         """
         # HACK: This trick only works if the base class can be instantiated, so
         # we cannot make it an ABC even if it has unimplemented methods.
-        if _registry.is_base_class(self.__class__):
-            cls = _registry.get(self.type)
+        if _node_registry.is_base_class(self.__class__):
+            cls = _node_registry.get(self.type)
             if cls is None:
                 raise ValueError(f'Node type "{self.type}" is not registered')
             return cls.model_validate(self.model_dump())
@@ -270,7 +265,7 @@ class NodeRegistry:
         return cls in self.base_classes
 
 
-_registry = NodeRegistry()
+_node_registry = NodeRegistry()
 
 
 __all__ = [
