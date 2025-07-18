@@ -1,7 +1,4 @@
 # tests/test_schema.py
-import json
-from multiprocessing.sharedctypes import Value
-
 import pytest
 from pydantic import ValidationError
 

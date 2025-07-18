@@ -8,10 +8,10 @@ schema as Python objects.
 
 from __future__ import annotations
 
+import json
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Set
 from functools import cached_property
-import json
 from typing import Any, Literal, Type, TypeAlias
 
 from overrides import override
@@ -38,6 +38,7 @@ class BaseJSONSchema(ABC, BaseModel):
 
     model_config = ConfigDict(extra="allow", frozen=True)
 
+    @property
     @abstractmethod
     def value_type(self) -> ValueType:
         raise NotImplementedError()
@@ -179,7 +180,7 @@ class ObjectJSONSchema(BaseJSONSchema):
             {k: (v.value_type, k in self.required) for k, v in self.properties.items()},
         )
 
-    @cached_property
+    @property
     @override
     def value_type(self) -> ValueType:
         return DataValue[self.data_type]
