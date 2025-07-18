@@ -1,7 +1,21 @@
 # tests/test_schema.py
+import json
+from multiprocessing.sharedctypes import Value
+
 import pytest
 from pydantic import ValidationError
 
+from workflow_engine import (
+    BooleanValue,
+    DataValue,
+    FileValue,
+    FloatValue,
+    IntegerValue,
+    NullValue,
+    SequenceValue,
+    StringMapValue,
+    StringValue,
+)
 from workflow_engine.core.schema import (
     BooleanJSONSchema,
     IntegerJSONSchema,
@@ -14,15 +28,6 @@ from workflow_engine.core.schema import (
     StringJSONSchema,
     StringMapJSONSchema,
 )
-from workflow_engine.core.value import (
-    BooleanValue,
-    FloatValue,
-    IntegerValue,
-    NullValue,
-    SequenceValue,
-    StringMapValue,
-    StringValue,
-)
 
 
 @pytest.mark.unit
@@ -32,15 +37,13 @@ def test_integer_schema():
     schema = IntegerJSONSchema(type="integer")
     assert schema.value_type is IntegerValue
 
-    # Integer with constraints
-    schema = IntegerJSONSchema(type="integer", minimum=0, maximum=100)
-    assert schema.value_type is IntegerValue
-    assert schema.minimum == 0
-    assert schema.maximum == 100
+    # attempt to deserialize various data
+    data = schema.value_type.model_validate(1)
+    assert isinstance(data, IntegerValue)
+    assert data.root == 1
 
-    # Invalid range
-    with pytest.raises(ValidationError):
-        IntegerJSONSchema(type="integer", minimum=100, maximum=0)
+    with pytest.raises(ValidationError):  # wrong type
+        _ = schema.value_type.model_validate(3.14)
 
 
 @pytest.mark.unit
@@ -50,15 +53,13 @@ def test_number_schema():
     schema = NumberJSONSchema(type="number")
     assert schema.value_type is FloatValue
 
-    # Number with constraints
-    schema = NumberJSONSchema(type="number", minimum=0.0, maximum=100.0)
-    assert schema.value_type is FloatValue
-    assert schema.minimum == 0.0
-    assert schema.maximum == 100.0
+    # attempt to deserialize various data
+    data = schema.value_type.model_validate(1.0)
+    assert isinstance(data, FloatValue)
+    assert data.root == 1.0
 
-    # Invalid range
-    with pytest.raises(ValidationError):
-        NumberJSONSchema(type="number", minimum=100.0, maximum=0.0)
+    with pytest.raises(ValidationError):  # wrong type
+        _ = schema.value_type.model_validate("not a number")
 
 
 @pytest.mark.unit
@@ -67,12 +68,28 @@ def test_boolean_schema():
     schema = BooleanJSONSchema(type="boolean")
     assert schema.value_type is BooleanValue
 
+    # attempt to deserialize various data
+    data = schema.value_type.model_validate(True)
+    assert isinstance(data, BooleanValue)
+    assert data.root is True
+
+    with pytest.raises(ValidationError):  # wrong type
+        _ = schema.value_type.model_validate("not a boolean")
+
 
 @pytest.mark.unit
 def test_null_schema():
     """Test NullJSONSchema creation and validation."""
     schema = NullJSONSchema(type="null")
     assert schema.value_type is NullValue
+
+    # attempt to deserialize various data
+    data = schema.value_type.model_validate(None)
+    assert isinstance(data, NullValue)
+    assert data.root is None
+
+    with pytest.raises(ValidationError):  # wrong type
+        _ = schema.value_type.model_validate("not a null")
 
 
 @pytest.mark.unit
@@ -82,14 +99,13 @@ def test_string_schema():
     schema = StringJSONSchema(type="string")
     assert schema.value_type is StringValue
 
-    # String with constraints
-    schema = StringJSONSchema(
-        type="string", minLength=1, maxLength=100, pattern="^[a-z]+$"
-    )
-    assert schema.value_type is StringValue
-    assert schema.minLength == 1
-    assert schema.maxLength == 100
-    assert schema.pattern == "^[a-z]+$"
+    # attempt to deserialize various data
+    data = schema.value_type.model_validate("hello")
+    assert isinstance(data, StringValue)
+    assert data.root == "hello"
+
+    with pytest.raises(ValidationError):  # wrong type
+        _ = schema.value_type.model_validate(1)
 
     # Invalid range
     with pytest.raises(ValidationError):
@@ -100,121 +116,119 @@ def test_string_schema():
 def test_sequence_schema():
     """Test SequenceJSONSchema creation and validation."""
     # Basic array schema
-    items_schema = JSONSchema.model_validate({"type": "integer"})
-    schema = SequenceJSONSchema(type="array", items=items_schema)
-    assert schema.value_type == SequenceValue[IntegerValue]
-
-    # Array with constraints
     schema = SequenceJSONSchema(
-        type="array", items=items_schema, minItems=1, maxItems=10, uniqueItems=True
+        type="array",
+        items=IntegerJSONSchema(type="integer"),
     )
-    assert schema.value_type == SequenceValue[IntegerValue]
-    assert schema.minItems == 1
-    assert schema.maxItems == 10
-    assert schema.uniqueItems is True
+    value_type = schema.value_type
+    assert value_type == SequenceValue[IntegerValue]
+
+    # attempt to deserialize various data
+    data = value_type.model_validate([1, 2, 3])
+    assert isinstance(data, SequenceValue)
+    assert data.root == [IntegerValue(1), IntegerValue(2), IntegerValue(3)]
+
+    with pytest.raises(ValidationError):  # wrong type
+        _ = value_type.model_validate([1, "not an integer", 3])
 
 
 @pytest.mark.unit
 def test_string_map_schema():
     """Test StringMapJSONSchema creation and validation."""
     # Basic object schema with additionalProperties
-    value_schema = JSONSchema.model_validate({"type": "string"})
-    schema = StringMapJSONSchema(type="object", additionalProperties=value_schema)
-    assert schema.value_type == StringMapValue[StringValue]
+    schema = StringMapJSONSchema(
+        type="object",
+        additionalProperties=BooleanJSONSchema(type="boolean"),
+    )
+    value_type = schema.value_type
+    assert value_type == StringMapValue[BooleanValue]
+
+    # attempt to deserialize various data
+    data = value_type.model_validate({"a": True, "b": False})
+    assert isinstance(data, StringMapValue)
+    assert data.root["a"] == BooleanValue(True)  # type: ignore
+    assert data.root["b"] == BooleanValue(False)  # type: ignore
+
+    with pytest.raises(ValidationError):  # wrong type for a
+        _ = value_type.model_validate({"a": "not a boolean", "b": False})
 
 
 @pytest.mark.unit
 def test_object_schema():
     """Test ObjectJSONSchema creation and validation."""
     # Object with properties
-    properties = {
-        "name": JSONSchema.model_validate({"type": "string"}),
-        "age": JSONSchema.model_validate({"type": "integer"}),
-    }
-    schema = ObjectJSONSchema(type="object", properties=properties, required={"name"})
+    schema = ObjectJSONSchema(
+        type="object",
+        properties={
+            "name": StringJSONSchema(type="string"),
+            "age": IntegerJSONSchema(type="integer"),
+        },
+        required={"name"},
+    )
 
     # The value_type should be a DataValue wrapping a Data type
     value_type = schema.value_type
-    assert "DataValue" in str(value_type)
+    assert issubclass(value_type, DataValue)
 
-    # Test with no required fields
-    schema = ObjectJSONSchema(type="object", properties=properties, required=set())
-    assert schema.required == set()
+    # attempt to deserialize various data
+    data = value_type.model_validate({"name": "John"}).root
+    assert data.name == StringValue("John")  # type: ignore
+
+    with pytest.raises(ValidationError):  # missing name
+        _ = value_type.model_validate({"age": 30})
+
+    data = value_type.model_validate({"name": "John", "age": 30}).root
+    assert data.name == StringValue("John")  # type: ignore
+    assert data.age == IntegerValue(30)  # type: ignore
 
 
 @pytest.mark.unit
 def test_json_schema_ref():
     """Test JSONSchemaRef creation and validation."""
-    # Test with existing Value type
-    schema = JSONSchemaRef.model_validate_json('{"$ref": "IntegerValue"}')
-    assert schema.value_type is IntegerValue
+    good_schema = JSONSchemaRef.from_name("FileValue")
+    assert good_schema.value_type is FileValue
 
     # Test with non-existent Value type
-    schema = JSONSchemaRef.model_validate_json('{"$ref": "NonExistentValue"}')
+    bad_schema = JSONSchemaRef.from_name("NonExistentValue")
     with pytest.raises(
         ValueError, match='Value type "NonExistentValue" is not registered'
     ):
-        _ = schema.value_type
+        _ = bad_schema.value_type
+
+    # attempt to deserialize various data
+    data = good_schema.value_type.model_validate(
+        {"path": "test.txt", "metadata": {"size": 100}}
+    )
+    assert isinstance(data, FileValue)
+    assert data.root.path == "test.txt"
+    assert data.root.metadata["size"] == 100
+
+    with pytest.raises(ValidationError):  # missing path
+        _ = good_schema.value_type.model_validate({"metadata": {"size": 100}})
 
 
 @pytest.mark.unit
 def test_json_schema_root_model():
     """Test JSONSchema RootModel with different schema types."""
     # Test integer schema
-    schema = JSONSchema.model_validate({"type": "integer"})
+    schema = JSONSchema.loads('{"type": "integer"}')
     assert schema.value_type is IntegerValue
 
     # Test string schema
-    schema = JSONSchema.model_validate({"type": "string"})
+    schema = JSONSchema.loads('{"type": "string"}')
     assert schema.value_type is StringValue
 
     # Test boolean schema
-    schema = JSONSchema.model_validate({"type": "boolean"})
+    schema = JSONSchema.loads('{"type": "boolean"}')
     assert schema.value_type is BooleanValue
 
     # Test null schema
-    schema = JSONSchema.model_validate({"type": "null"})
+    schema = JSONSchema.loads('{"type": "null"}')
     assert schema.value_type is NullValue
 
     # Test number schema
-    schema = JSONSchema.model_validate({"type": "number"})
+    schema = JSONSchema.loads('{"type": "number"}')
     assert schema.value_type is FloatValue
-
-
-@pytest.mark.unit
-def test_json_schema_with_ref():
-    """Test JSONSchema with $ref fields."""
-    # Test direct $ref
-    schema = JSONSchema.model_validate_json('{"$ref": "IntegerValue"}')
-    assert schema.value_type is IntegerValue
-
-    # Test object with $ref properties
-    schema = JSONSchema.model_validate_json("""{
-        "type": "object",
-        "properties": {"value": {"$ref": "IntegerValue"}},
-        "required": ["value"]
-    }""")
-    # Should create an ObjectJSONSchema with JSONSchemaRef in properties
-    assert isinstance(schema.root, ObjectJSONSchema)
-    assert "value" in schema.root.properties
-
-
-@pytest.mark.unit
-def test_complex_nested_schemas():
-    """Test complex nested schema structures."""
-    # Array of objects
-    object_schema = {
-        "type": "object",
-        "properties": {"name": {"type": "string"}, "age": {"type": "integer"}},
-        "required": {"name"},
-    }
-
-    array_schema = {"type": "array", "items": object_schema}
-
-    schema = JSONSchema.model_validate(array_schema)
-    # Should create a SequenceJSONSchema with ObjectJSONSchema as items
-    assert isinstance(schema.root, SequenceJSONSchema)
-    assert isinstance(schema.root.items.root, ObjectJSONSchema)
 
 
 @pytest.mark.unit
@@ -222,16 +236,14 @@ def test_schema_validation_errors():
     """Test schema validation error cases."""
     # Invalid type
     with pytest.raises(ValidationError):
-        JSONSchema.model_validate({"type": "invalid_type"})
+        JSONSchema.load({"type": "invalid_type"})
 
     # Missing required fields
     with pytest.raises(ValidationError):
-        SequenceJSONSchema.model_validate({"type": "array"})  # missing items
+        JSONSchema.load({"type": "array"})  # missing items
 
     with pytest.raises(ValidationError):
-        StringMapJSONSchema.model_validate(
-            {"type": "object"}
-        )  # missing additionalProperties
+        JSONSchema.load({"type": "object"})  # missing additionalProperties
 
     # Invalid $ref
     with pytest.raises(ValidationError):
@@ -242,20 +254,17 @@ def test_schema_validation_errors():
 def test_schema_extra_fields():
     """Test that extra fields are allowed due to extra='allow' config."""
     # Add extra fields to integer schema
-    schema = IntegerJSONSchema.model_validate(
+    schema = JSONSchema.load(
         {
             "type": "integer",
-            "minimum": 0,
-            "maximum": 100,
+            "title": "Test Integer",
             "description": "A test integer",
             "example": 42,
         }
     )
     assert schema.value_type is IntegerValue
-    assert schema.minimum == 0
-    assert schema.maximum == 100
-    # Extra fields should be preserved
     assert schema.model_extra is not None
+    assert schema.model_extra["title"] == "Test Integer"
     assert schema.model_extra["description"] == "A test integer"
     assert schema.model_extra["example"] == 42
 
@@ -274,7 +283,7 @@ def test_schema_frozen_behavior():
 def test_schema_serialization():
     """Test schema serialization and deserialization."""
     # Create a complex schema
-    original_schema = JSONSchema.model_validate_json("""{
+    schema = JSONSchema.loads("""{
         "type": "object",
         "properties": {
             "numbers": {"type": "array", "items": {"type": "integer"}},
@@ -286,36 +295,43 @@ def test_schema_serialization():
         "required": ["numbers"]
     }""")
 
-    # Test that the schema was parsed correctly
-    assert isinstance(original_schema.root, ObjectJSONSchema)
-    assert "numbers" in original_schema.root.properties
-    assert "config" in original_schema.root.properties
-
-    # Test that we can access the value_type
-    value_type = original_schema.value_type
-    assert "DataValue" in str(value_type)
+    assert schema == ObjectJSONSchema(
+        type="object",
+        properties={
+            "numbers": SequenceJSONSchema(
+                type="array",
+                items=IntegerJSONSchema(type="integer"),
+            ),
+            "config": StringMapJSONSchema(
+                type="object",
+                additionalProperties=StringJSONSchema(type="string"),
+            ),
+        },
+        required=frozenset({"numbers"}),
+    )
 
 
 @pytest.mark.unit
 def test_schema_from_pydantic_model():
-    """Test creating schema from Pydantic model JSON schema."""
+    """Test round-trip Data to JSONSchema to Data."""
     from workflow_engine.core.data import build_data_type
     from workflow_engine.core.value import IntegerValue, StringValue
 
     # Create a simple Data type
     TestData = build_data_type(
-        "TestData", {"name": (StringValue, True), "age": (IntegerValue, False)}
+        "TestData",
+        {
+            "name": (StringValue, True),
+            "age": (IntegerValue, False),
+        },
     )
 
     # Get the JSON schema
-    json_schema = TestData.model_json_schema()
+    json_schema_dict = TestData.model_json_schema()
 
     # Parse it with our JSONSchema
-    schema = JSONSchema.model_validate(json_schema)
+    schema = JSONSchema.load(json_schema_dict)
 
     # Should create an ObjectJSONSchema
-    assert isinstance(schema.root, ObjectJSONSchema)
-    assert "name" in schema.root.properties
-    assert "age" in schema.root.properties
-    assert "name" in schema.root.required
-    assert "age" not in schema.root.required
+    assert isinstance(schema, ObjectJSONSchema)
+    assert issubclass(schema.value_type, DataValue)

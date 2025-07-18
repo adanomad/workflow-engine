@@ -6,6 +6,7 @@ from .error import NodeException, UserException, WorkflowErrors
 from .execution import ExecutionAlgorithm
 from .file import File, FileValue
 from .node import Empty, Node, Params
+from .schema import JSONSchema
 from .value import (
     BooleanValue,
     Caster,
@@ -35,6 +36,7 @@ __all__ = [
     "FloatValue",
     "InputEdge",
     "IntegerValue",
+    "JSONSchema",
     "Node",
     "NodeException",
     "NullValue",

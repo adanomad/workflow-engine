@@ -11,7 +11,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Set
 from functools import cached_property
-from typing import Literal, Type
+import json
+from typing import Any, Literal, Type, TypeAlias
 
 from overrides import override
 from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
@@ -136,7 +137,7 @@ class SequenceJSONSchema(BaseJSONSchema):
     """
 
     type: Literal["array"]
-    items: JSONSchema
+    items: JSONSchemaUnion
     minItems: int | None = None
     maxItems: int | None = None
     uniqueItems: bool | None = None
@@ -153,7 +154,7 @@ class StringMapJSONSchema(BaseJSONSchema):
     """
 
     type: Literal["object"]
-    additionalProperties: JSONSchema
+    additionalProperties: JSONSchemaUnion
 
     @property
     @override
@@ -167,7 +168,7 @@ class ObjectJSONSchema(BaseJSONSchema):
     """
 
     type: Literal["object"]
-    properties: Mapping[str, JSONSchema]
+    properties: Mapping[str, JSONSchemaUnion]
     required: Set[str] = Field(default_factory=set)
     additionalProperties: bool = False
 
@@ -195,32 +196,60 @@ class JSONSchemaRef(BaseJSONSchema):
 
     ref: str = Field(..., alias="$ref")
 
+    @cached_property
+    def name(self) -> str:
+        return self.ref.removeprefix("#/$defs/")
+
+    @model_validator(mode="after")
+    def validate_data_type(self):
+        assert self.ref.startswith("#/$defs/")
+        return self
+
     @property
     @override
     def value_type(self) -> ValueType:
-        return _value_registry.get(self.ref)
+        return _value_registry.get(self.name)
+
+    @staticmethod
+    def from_ref(ref: str) -> JSONSchemaRef:
+        return JSONSchemaRef(**{"$ref": ref})
+
+    @staticmethod
+    def from_name(name: str) -> JSONSchemaRef:
+        return JSONSchemaRef.from_ref(f"#/$defs/{name}")
 
 
-class JSONSchema(
-    RootModel[
-        BooleanJSONSchema
-        | IntegerJSONSchema
-        | JSONSchemaRef
-        | NullJSONSchema
-        | NumberJSONSchema
-        | ObjectJSONSchema
-        | SequenceJSONSchema
-        | StringJSONSchema
-        | StringMapJSONSchema
-    ]
-):
+JSONSchemaUnion: TypeAlias = (
+    BooleanJSONSchema
+    | IntegerJSONSchema
+    | JSONSchemaRef
+    | NullJSONSchema
+    | NumberJSONSchema
+    | ObjectJSONSchema
+    | SequenceJSONSchema
+    | StringJSONSchema
+    | StringMapJSONSchema
+)
+
+
+class JSONSchema(RootModel[JSONSchemaUnion]):
     """
-    https://json-schema.org/understanding-json-schema/reference/schema
+    A wrapper class to allow users to read any of the JSONSchemaUnion types.
     """
 
-    @cached_property
-    def value_type(self) -> ValueType:
-        return self.root.value_type
+    @staticmethod
+    def loads(s: str) -> JSONSchemaUnion:
+        """
+        Convert a JSON string to a JSONSchemaUnion.
+        """
+        return JSONSchema.model_validate_json(s).root
+
+    @staticmethod
+    def load(d: Mapping[str, Any]) -> JSONSchemaUnion:
+        """
+        Convert a Python dictionary object to a JSONSchemaUnion.
+        """
+        return JSONSchema.loads(json.dumps(d))
 
 
 __all__ = [
