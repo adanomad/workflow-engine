@@ -15,7 +15,7 @@ from functools import cached_property
 from typing import Any, Literal, Type, TypeAlias
 
 from overrides import override
-from pydantic import BaseModel, ConfigDict, Field, RootModel, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .data import Data, DataValue, build_data_type
 from .value import (
@@ -26,6 +26,7 @@ from .value import (
     SequenceValue,
     StringMapValue,
     StringValue,
+    Value,
     ValueType,
     _value_registry,
 )
@@ -233,7 +234,7 @@ JSONSchemaUnion: TypeAlias = (
 )
 
 
-class JSONSchema(RootModel[JSONSchemaUnion]):
+class JSONSchemaValue(Value[JSONSchemaUnion]):
     """
     A wrapper class to allow users to read any of the JSONSchemaUnion types.
     """
@@ -243,16 +244,16 @@ class JSONSchema(RootModel[JSONSchemaUnion]):
         """
         Convert a JSON string to a JSONSchemaUnion.
         """
-        return JSONSchema.model_validate_json(s).root
+        return JSONSchemaValue.model_validate_json(s).root
 
     @staticmethod
     def load(d: Mapping[str, Any]) -> JSONSchemaUnion:
         """
         Convert a Python dictionary object to a JSONSchemaUnion.
         """
-        return JSONSchema.loads(json.dumps(d))
+        return JSONSchemaValue.loads(json.dumps(d))
 
 
 __all__ = [
-    "JSONSchema",
+    "JSONSchemaValue",
 ]

@@ -16,8 +16,8 @@ from workflow_engine import (
 from workflow_engine.core.schema import (
     BooleanJSONSchema,
     IntegerJSONSchema,
-    JSONSchema,
     JSONSchemaRef,
+    JSONSchemaValue,
     NullJSONSchema,
     NumberJSONSchema,
     ObjectJSONSchema,
@@ -206,25 +206,25 @@ def test_json_schema_ref():
 
 @pytest.mark.unit
 def test_json_schema_root_model():
-    """Test JSONSchema RootModel with different schema types."""
+    """Test JSONSchemaValue RootModel with different schema types."""
     # Test integer schema
-    schema = JSONSchema.loads('{"type": "integer"}')
+    schema = JSONSchemaValue.loads('{"type": "integer"}')
     assert schema.value_type is IntegerValue
 
     # Test string schema
-    schema = JSONSchema.loads('{"type": "string"}')
+    schema = JSONSchemaValue.loads('{"type": "string"}')
     assert schema.value_type is StringValue
 
     # Test boolean schema
-    schema = JSONSchema.loads('{"type": "boolean"}')
+    schema = JSONSchemaValue.loads('{"type": "boolean"}')
     assert schema.value_type is BooleanValue
 
     # Test null schema
-    schema = JSONSchema.loads('{"type": "null"}')
+    schema = JSONSchemaValue.loads('{"type": "null"}')
     assert schema.value_type is NullValue
 
     # Test number schema
-    schema = JSONSchema.loads('{"type": "number"}')
+    schema = JSONSchemaValue.loads('{"type": "number"}')
     assert schema.value_type is FloatValue
 
 
@@ -233,14 +233,14 @@ def test_schema_validation_errors():
     """Test schema validation error cases."""
     # Invalid type
     with pytest.raises(ValidationError):
-        JSONSchema.load({"type": "invalid_type"})
+        JSONSchemaValue.load({"type": "invalid_type"})
 
     # Missing required fields
     with pytest.raises(ValidationError):
-        JSONSchema.load({"type": "array"})  # missing items
+        JSONSchemaValue.load({"type": "array"})  # missing items
 
     with pytest.raises(ValidationError):
-        JSONSchema.load({"type": "object"})  # missing additionalProperties
+        JSONSchemaValue.load({"type": "object"})  # missing additionalProperties
 
     # Invalid $ref
     with pytest.raises(ValidationError):
@@ -251,7 +251,7 @@ def test_schema_validation_errors():
 def test_schema_extra_fields():
     """Test that extra fields are allowed due to extra='allow' config."""
     # Add extra fields to integer schema
-    schema = JSONSchema.load(
+    schema = JSONSchemaValue.load(
         {
             "type": "integer",
             "title": "Test Integer",
@@ -280,7 +280,7 @@ def test_schema_frozen_behavior():
 def test_schema_serialization():
     """Test schema serialization and deserialization."""
     # Create a complex schema
-    schema = JSONSchema.loads("""{
+    schema = JSONSchemaValue.loads("""{
         "type": "object",
         "properties": {
             "numbers": {"type": "array", "items": {"type": "integer"}},
@@ -327,7 +327,7 @@ def test_schema_from_pydantic_model():
     json_schema_dict = TestData.model_json_schema()
 
     # Parse it with our JSONSchema
-    schema = JSONSchema.load(json_schema_dict)
+    schema = JSONSchemaValue.load(json_schema_dict)
 
     # Should create an ObjectJSONSchema
     assert isinstance(schema, ObjectJSONSchema)
