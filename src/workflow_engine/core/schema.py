@@ -58,7 +58,10 @@ class IntegerJSONSchema(BaseJSONSchema):
     @model_validator(mode="after")
     def validate_range(self):
         if self.minimum is not None and self.maximum is not None:
-            assert self.minimum <= self.maximum
+            if self.minimum > self.maximum:
+                raise ValueError(
+                    f"Invalid range: minimum ({self.minimum}) cannot exceed maximum ({self.maximum})."
+                )
         return self
 
     @property
