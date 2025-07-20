@@ -212,7 +212,9 @@ class JSONSchemaRef(BaseJSONSchema):
 
     @model_validator(mode="after")
     def validate_data_type(self):
-        assert self.ref.startswith("#/$defs/")
+        assert self.ref.startswith("#/$defs/"), (
+            f"Invalid $ref value: '{self.ref}'. Expected $ref to start with '#/$defs/'."
+        )
         return self
 
     @property
