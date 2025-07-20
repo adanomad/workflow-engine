@@ -1,3 +1,6 @@
+# workflow_engine/utils/generic.py
+"""Utilities for generic types."""
+
 import re
 
 _generic_pattern = re.compile(r"^[a-zA-Z]\w+\[.*\]$")
