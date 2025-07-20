@@ -130,7 +130,9 @@ class StringJSONSchema(BaseJSONSchema):
     @model_validator(mode="after")
     def validate_range(self):
         if self.minLength is not None and self.maxLength is not None:
-            assert self.minLength <= self.maxLength
+            assert self.minLength <= self.maxLength, (
+                f"minLength ({self.minLength}) cannot be greater than maxLength ({self.maxLength})."
+            )
         return self
 
     @property
