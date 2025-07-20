@@ -1,4 +1,4 @@
-# src/workflow_engine/utils/schema.py
+# src/workflow_engine/core/schema.py
 """
 Implements a subset of the JSON Schema specification that we support.
 
