@@ -1,12 +1,23 @@
 # workflow_engine/core/__init__.py
 from .context import Context
-from .data import Data, DataMapping, DataValue
+from .data import Data, DataMapping, DataType, DataValue
 from .edge import Edge, InputEdge, OutputEdge
 from .error import NodeException, UserException, WorkflowErrors
 from .execution import ExecutionAlgorithm
 from .file import File, FileValue
 from .node import Empty, Node, Params
-from .schema import JSONSchemaValue
+from .schema import (
+    BooleanJSONSchema,
+    IntegerJSONSchema,
+    JSONSchema,
+    JSONSchemaValue,
+    NullJSONSchema,
+    NumberJSONSchema,
+    ObjectJSONSchema,
+    SequenceJSONSchema,
+    StringJSONSchema,
+    StringMapJSONSchema,
+)
 from .value import (
     BooleanValue,
     Caster,
@@ -22,11 +33,13 @@ from .value import (
 from .workflow import Workflow
 
 __all__ = [
+    "BooleanJSONSchema",
     "BooleanValue",
     "Caster",
     "Context",
     "Data",
     "DataMapping",
+    "DataType",
     "DataValue",
     "Edge",
     "Empty",
@@ -35,14 +48,22 @@ __all__ = [
     "FileValue",
     "FloatValue",
     "InputEdge",
+    "IntegerJSONSchema",
     "IntegerValue",
+    "JSONSchema",
     "JSONSchemaValue",
     "Node",
     "NodeException",
+    "NullJSONSchema",
     "NullValue",
+    "NumberJSONSchema",
+    "ObjectJSONSchema",
     "OutputEdge",
     "Params",
+    "SequenceJSONSchema",
     "SequenceValue",
+    "StringJSONSchema",
+    "StringMapJSONSchema",
     "StringMapValue",
     "StringValue",
     "UserException",

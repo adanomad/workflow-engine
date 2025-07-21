@@ -17,6 +17,7 @@ from ..core import (
     Data,
     DataValue,
     Empty,
+    DataType,
     IntegerValue,
     Node,
     Params,
@@ -69,7 +70,7 @@ class GatherSequenceNode(Node[Data, SequenceData, SequenceParams]):
 
     @property
     @override
-    def input_type(self) -> Type[Data]:
+    def input_type(self) -> DataType:
         return build_data_type(
             "GatherSequenceInput",
             {key: (self.element_type, True) for key in self.keys},
@@ -306,7 +307,7 @@ class GatherDataNode(Node[Data, NestedData, Empty]):
     # For now, this field is only available when the node is constructed
     # programmatically.
     # TODO: make this serializable/deserializable
-    data_type: Type[Data] = Field(default=Data, exclude=True)
+    data_type: DataType = Field(default=Data, exclude=True)
 
     @property
     @override
@@ -323,7 +324,7 @@ class GatherDataNode(Node[Data, NestedData, Empty]):
         return NestedData[self.data_type](data=DataValue[self.data_type](root=input))
 
     @classmethod
-    def from_data_type(cls, id: str, data_type: Type[Data]) -> Self:
+    def from_data_type(cls, id: str, data_type: DataType) -> Self:
         return cls(
             id=id,
             params=Empty(),
@@ -347,7 +348,7 @@ class ExpandDataNode(Node[NestedData, Data, Empty]):
     # For now, this field is only available when the node is constructed
     # programmatically.
     # TODO: make this serializable/deserializable
-    data_type: Type[Data] = Field(default=Data, exclude=True)
+    data_type: DataType = Field(default=Data, exclude=True)
 
     @property
     @override
@@ -364,7 +365,7 @@ class ExpandDataNode(Node[NestedData, Data, Empty]):
         return input.data.root
 
     @classmethod
-    def from_data_type(cls, id: str, data_type: Type[Data]) -> Self:
+    def from_data_type(cls, id: str, data_type: DataType) -> Self:
         return cls(
             id=id,
             params=Empty(),

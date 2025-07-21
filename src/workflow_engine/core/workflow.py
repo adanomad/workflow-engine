@@ -1,17 +1,22 @@
 # workflow_engine/core/workflow.py
+import asyncio
 from collections.abc import Mapping, Sequence
 from functools import cached_property
 from itertools import chain
-from typing import Type
+from typing import TYPE_CHECKING
 
 import networkx as nx
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
-from .data import Data, DataMapping, build_data_type
+from .data import DataMapping, DataType, build_data_type, get_data_fields
 from .edge import Edge, InputEdge, OutputEdge
 from .error import NodeExpansionException, UserException
 from .node import Node
-from .value import ValueType
+from .schema import ObjectJSONSchema
+from .value import Value, ValueType
+
+if TYPE_CHECKING:
+    from .context import Context
 
 
 class Workflow(BaseModel):
@@ -21,6 +26,8 @@ class Workflow(BaseModel):
     edges: Sequence[Edge]
     input_edges: Sequence[InputEdge]
     output_edges: Sequence[OutputEdge]
+    input_schema: ObjectJSONSchema | None = None
+    output_schema: ObjectJSONSchema | None = None
 
     @cached_property
     def nodes_by_id(self) -> Mapping[str, Node]:
@@ -49,42 +56,63 @@ class Workflow(BaseModel):
         return edges_by_target
 
     @cached_property
+    def input_type(self) -> DataType:
+        if self.input_schema is not None:
+            return self.input_schema.data_type
+
+        # try to automatically infer the input type from the nodes
+        input_fields: dict[str, tuple[ValueType, bool]] = {}
+        for edge in self.input_edges:
+            key = edge.input_key
+            if key in input_fields:
+                existing_type, existing_required = input_fields[key]
+            else:
+                existing_type = None
+                existing_required = False
+
+            target_node = self.nodes_by_id[edge.target_id]
+            target_key = edge.target_key
+            target_type, target_required = target_node.input_fields[target_key]
+
+            if existing_type is None:
+                field_type = target_type
+            else:
+                if existing_type != target_type:
+                    raise ValueError(
+                        f"Input field {key} has different types: {existing_type} and {target_type}"
+                    )
+                field_type = existing_type
+            required = existing_required or target_required
+            input_fields[key] = (field_type, required)
+
+        return build_data_type("WorkflowInput", input_fields)
+
+    @cached_property
+    def output_type(self) -> DataType:
+        if self.output_schema is not None:
+            return self.output_schema.data_type
+
+        # try to automatically infer the output type from the nodes
+        output_fields: dict[str, tuple[ValueType, bool]] = {}
+        for edge in self.output_edges:
+            key = edge.output_key
+            assert key not in output_fields, (
+                f"Multiple edges found with the same output field {key}"
+            )
+
+            source_node = self.nodes_by_id[edge.source_id]
+            source_key = edge.source_key
+            output_fields[key] = source_node.output_fields[source_key]
+
+        return build_data_type("WorkflowOutput", output_fields)
+
+    @cached_property
     def input_fields(self) -> Mapping[str, tuple[ValueType, bool]]:
-        return {
-            edge.input_key: self.nodes_by_id[edge.target_id].input_fields[
-                edge.target_key
-            ]
-            for edge in self.input_edges
-        }
+        return get_data_fields(self.input_type)
 
     @cached_property
     def output_fields(self) -> Mapping[str, tuple[ValueType, bool]]:
-        return {
-            edge.output_key: self.nodes_by_id[edge.source_id].output_fields[
-                edge.source_key
-            ]
-            for edge in self.output_edges
-        }
-
-    @cached_property
-    def input_type(self) -> Type[Data]:
-        return build_data_type(
-            "WorkflowInput",
-            {
-                edge.input_key: self.input_fields[edge.input_key]
-                for edge in self.input_edges
-            },
-        )
-
-    @cached_property
-    def output_type(self) -> Type[Data]:
-        return build_data_type(
-            "WorkflowOutput",
-            {
-                edge.output_key: self.output_fields[edge.output_key]
-                for edge in self.output_edges
-            },
-        )
+        return get_data_fields(self.output_type)
 
     @cached_property
     def nx_graph(self) -> nx.DiGraph:
@@ -123,6 +151,24 @@ class Workflow(BaseModel):
             edge.validate_types(
                 source=self.nodes_by_id[edge.source_id],
                 target=self.nodes_by_id[edge.target_id],
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_input_edges(self):
+        for edge in self.input_edges:
+            edge.validate_types(
+                input_type=self.input_type,
+                target=self.nodes_by_id[edge.target_id],
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _validate_output_edges(self):
+        for edge in self.output_edges:
+            edge.validate_types(
+                source=self.nodes_by_id[edge.source_id],
+                output_type=self.output_type,
             )
         return self
 
@@ -211,8 +257,9 @@ class Workflow(BaseModel):
                 )
         return ready_nodes
 
-    def get_output(
+    async def get_output(
         self,
+        context: "Context",
         node_outputs: Mapping[str, DataMapping],
         partial: bool = False,
     ) -> DataMapping:
@@ -223,24 +270,33 @@ class Workflow(BaseModel):
         output will only include nodes that have been executed, for which the
         output field is available.
         """
-        output: DataMapping = {}
-        for edge in self.output_edges:
+
+        async def _cast_output_field(edge: OutputEdge) -> Value | None:
             if edge.source_id not in node_outputs:
                 if partial:
-                    continue
+                    return None
                 raise UserException(
                     f"Cannot get output from node {edge.source_id}.",
                 )
             node_output = node_outputs[edge.source_id]
             if edge.source_key not in node_output:
                 if partial:
-                    continue
+                    return None
                 raise UserException(
                     f"Cannot get output from node {edge.source_id} at key '{edge.source_key}'.",
                 )
             output_field = node_output[edge.source_key]
-            output[edge.output_key] = output_field
-        return output
+            output_field_type, _ = self.output_fields[edge.output_key]
+            return await output_field.cast_to(output_field_type, context=context)
+
+        values = await asyncio.gather(
+            *[_cast_output_field(edge) for edge in self.output_edges]
+        )
+        return {
+            edge.output_key: value
+            for edge, value in zip(self.output_edges, values, strict=True)
+            if value is not None
+        }
 
     def expand_node(
         self,

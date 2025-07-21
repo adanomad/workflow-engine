@@ -27,5 +27,7 @@
       "source_key": "file",
       "output_key": "file"
     }
-  ]
+  ],
+  "input_schema": null,
+  "output_schema": null
 }

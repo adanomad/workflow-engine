@@ -2,9 +2,10 @@ import pytest
 
 from workflow_engine import (
     Edge,
-    FloatValue,
     InputEdge,
     IntegerValue,
+    IntegerJSONSchema,
+    ObjectJSONSchema,
     OutputEdge,
     Workflow,
 )
@@ -57,6 +58,13 @@ def workflow():
                 output_key="sum",
             ),
         ],
+        output_schema=ObjectJSONSchema(
+            type="object",
+            properties={
+                "sum": IntegerJSONSchema(type="integer"),
+            },
+            required=frozenset({"sum"}),
+        ),
     )
 
 
@@ -86,4 +94,4 @@ async def test_workflow_execution(workflow: Workflow):
         input={"c": IntegerValue(c)},
     )
     assert not errors.any()
-    assert output == {"sum": FloatValue(42 + 2025 + c)}
+    assert output == {"sum": IntegerValue(42 + 2025 + c)}

@@ -6,11 +6,11 @@ from pydantic import ValidationError
 
 from workflow_engine.core.data import build_data_type, get_data_fields
 from workflow_engine.core.value import ValueType
-from workflow_engine import BooleanValue, Data, StringValue, IntegerValue
+from workflow_engine import BooleanValue, Data, DataType, StringValue, IntegerValue
 
 
 @pytest.fixture
-def ExampleData() -> type[Data]:
+def ExampleData() -> DataType:
     """Test data class."""
 
     class ExampleData(Data):
@@ -34,7 +34,7 @@ def example_fields() -> Mapping[str, tuple[ValueType, bool]]:
 
 @pytest.mark.unit
 def test_get_data_fields(
-    ExampleData: type[Data], example_fields: Mapping[str, tuple[ValueType, bool]]
+    ExampleData: DataType, example_fields: Mapping[str, tuple[ValueType, bool]]
 ):
     """Test that get_data_fields returns the correct fields."""
 
@@ -43,7 +43,7 @@ def test_get_data_fields(
 
 @pytest.mark.unit
 def test_build_data_type(
-    ExampleData: type[Data], example_fields: Mapping[str, tuple[ValueType, bool]]
+    ExampleData: DataType, example_fields: Mapping[str, tuple[ValueType, bool]]
 ):
     """Test that build_data_type returns the correct class."""
 

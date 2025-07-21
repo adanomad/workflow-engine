@@ -50,10 +50,17 @@ class TopologicalExecutionAlgorithm(ExecutionAlgorithm):
                     )
                 )
 
-            output = workflow.get_output(node_outputs)
+            output = await workflow.get_output(
+                context,
+                node_outputs,
+            )
         except Exception as e:
             errors.add(e)
-            partial_output = workflow.get_output(node_outputs, partial=True)
+            partial_output = await workflow.get_output(
+                context,
+                node_outputs,
+                partial=True,
+            )
             errors, partial_output = await context.on_workflow_error(
                 workflow=workflow,
                 input=input,

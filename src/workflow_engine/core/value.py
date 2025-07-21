@@ -13,7 +13,6 @@ from typing import (
     Protocol,
     Self,
     Type,
-    TypeAliasType,
     TypeVar,
 )
 
@@ -23,6 +22,7 @@ from ..utils.generic import get_base
 
 if TYPE_CHECKING:
     from .context import Context
+    from .schema import JSONSchema
 
 
 logger = getLogger(__name__)
@@ -30,7 +30,7 @@ logger = getLogger(__name__)
 
 T = TypeVar("T")
 V = TypeVar("V", bound="Value")
-ValueType = TypeAliasType("ValueType", Type["Value"])
+type ValueType = Type[Value]
 
 
 def get_origin_and_args(t: ValueType) -> tuple[ValueType, tuple[ValueType, ...]]:
@@ -56,7 +56,7 @@ def get_origin_and_args(t: ValueType) -> tuple[ValueType, tuple[ValueType, ...]]
         return origin, tuple(args)
 
 
-ValueTypeKey = TypeAliasType("ValueTypeKey", tuple[str, tuple["ValueTypeKey", ...]])
+ValueTypeKey = tuple[str, tuple["ValueTypeKey", ...]]
 
 
 def get_value_type_key(t: ValueType) -> ValueTypeKey:
@@ -273,6 +273,12 @@ class Value(RootModel[T], Generic[T]):
     def md5(self) -> str:
         return md5(str(self).encode()).hexdigest()
 
+    @classmethod
+    def to_schema(cls) -> "JSONSchema":
+        from .schema import JSONSchemaValue
+
+        return JSONSchemaValue.load(cls.model_json_schema())
+
 
 class ValueRegistry:
     def __init__(self):
@@ -432,4 +438,5 @@ __all__ = [
     "StringMapValue",
     "StringValue",
     "Value",
+    "ValueType",
 ]

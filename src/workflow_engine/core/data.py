@@ -3,7 +3,7 @@ import asyncio
 import json
 import logging
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Type, TypeVar
 
 from pydantic import BaseModel, ConfigDict, create_model
 
@@ -11,6 +11,7 @@ from .value import Caster, StringMapValue, Value, ValueType, get_origin_and_args
 
 if TYPE_CHECKING:
     from .context import Context
+    from .schema import ObjectJSONSchema
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +37,15 @@ class Data(BaseModel):
             data[key] = value
         return data
 
+    @classmethod
+    def to_schema(cls) -> "ObjectJSONSchema":
+        from .schema import ObjectJSONSchema
 
-DataMapping: TypeAlias = Mapping[str, Value]
+        return ObjectJSONSchema.model_validate(cls.model_json_schema())
+
+
+type DataType = Type[Data]
+type DataMapping = Mapping[str, Value]
 
 
 def dump_data_mapping(data: DataMapping) -> Mapping[str, Any]:
@@ -52,7 +60,7 @@ Input_contra = TypeVar("Input_contra", bound=Data, contravariant=True)
 Output_co = TypeVar("Output_co", bound=Data, covariant=True)
 
 
-def get_data_fields(cls: type[Data]) -> Mapping[str, tuple[ValueType, bool]]:
+def get_data_fields(cls: DataType) -> Mapping[str, tuple[ValueType, bool]]:
     """
     Extract the fields of a Data subclass.
 
@@ -70,20 +78,34 @@ def get_data_fields(cls: type[Data]) -> Mapping[str, tuple[ValueType, bool]]:
     return fields
 
 
+def get_data_field(cls: DataType, field_name: str) -> tuple[ValueType, bool]:
+    """
+    A singular version of get_data_fields.
+    """
+    field_info = cls.model_fields[field_name]
+    assert field_info.annotation is not None
+    assert issubclass(field_info.annotation, Value)
+    return (field_info.annotation, field_info.is_required())
+
+
 D = TypeVar("D", bound=Data)
 
 
 def build_data_type(
     name: str,
     fields: Mapping[str, tuple[ValueType, bool]],
-    base_cls: type[D] = Data,
-) -> type[D]:
+    base_cls: Type[D] = Data,
+) -> Type[D]:
     """
     Create a Data subclass whose fields are given by a mapping of field names to
     (ValueType, is_required) tuples.
 
-    This is the inverse of get_fields() - it constructs a class that would return
+    This is the inverse of get_fields(); it constructs a class that would return
     the same mapping when passed to get_fields().
+
+    The separation of the ValueType from its requiredness matches the JSON
+    Schema format, where an object's required properties are represented as a
+    list of required names, separate from the properties themselves.
 
     Args:
         name: The name of the class to create
@@ -118,8 +140,8 @@ V = TypeVar("V", bound=Value)
 
 @DataValue.register_generic_cast_to(DataValue)
 def cast_data_to_data(
-    source_type: type[DataValue],
-    target_type: type[DataValue],
+    source_type: Type[DataValue],
+    target_type: Type[DataValue],
 ) -> Caster[DataValue, DataValue] | None:
     source_origin, (source_value_type,) = get_origin_and_args(source_type)
     assert source_origin is DataValue
@@ -160,8 +182,8 @@ def cast_data_to_data(
 
 @DataValue.register_generic_cast_to(StringMapValue)
 def cast_data_to_string_map(
-    source_type: type[DataValue],
-    target_type: type[StringMapValue[V]],
+    source_type: Type[DataValue],
+    target_type: Type[StringMapValue[V]],
 ) -> Caster[DataValue, StringMapValue[V]] | None:
     """
     Casts a DataValue[D] object to a StringMapValue[V] object, if all of the
@@ -199,8 +221,8 @@ def cast_data_to_string_map(
 
 @StringMapValue.register_generic_cast_to(DataValue)
 def cast_string_map_to_data(
-    source_type: type[StringMapValue],
-    target_type: type[DataValue],
+    source_type: Type[StringMapValue],
+    target_type: Type[DataValue],
 ) -> Caster[StringMapValue, DataValue] | None:
     """
     Casts a StringMapValue[V] object to a DataValue[D] object by trying to cast
@@ -265,6 +287,7 @@ __all__ = [
     "DataMapping",
     "DataValue",
     "dump_data_mapping",
+    "get_data_field",
     "get_data_fields",
     "Input_contra",
     "Output_co",

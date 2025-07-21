@@ -30,5 +30,7 @@
       "source_key": "value",
       "output_key": "text"
     }
-  ]
+  ],
+  "input_schema": null,
+  "output_schema": null
 }

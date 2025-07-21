@@ -58,5 +58,20 @@
       "source_key": "sum",
       "output_key": "sum"
     }
-  ]
+  ],
+  "input_schema": null,
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "sum": {
+        "type": "integer",
+        "minimum": null,
+        "maximum": null,
+        "multipleOf": null
+      }
+    },
+    "required": [
+      "sum"
+    ]
+  }
 }

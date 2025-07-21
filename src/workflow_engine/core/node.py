@@ -2,6 +2,7 @@
 import asyncio
 import logging
 from collections.abc import Mapping
+from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Awaitable,
@@ -9,7 +10,6 @@ from typing import (
     Self,
     Type,
     TypeVar,
-    Union,
     Unpack,
     _LiteralGenericAlias,  # type: ignore
 )
@@ -17,9 +17,7 @@ from typing import (
 from overrides import final
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
-if TYPE_CHECKING:
-    from .context import Context
-    from .workflow import Workflow
+from ..utils.generic import get_base
 from .data import (
     Data,
     DataMapping,
@@ -28,8 +26,12 @@ from .data import (
     get_data_fields,
 )
 from .error import NodeException, UserException
+from .schema import ObjectJSONSchema
 from .value import Value, ValueType
-from ..utils.generic import get_base
+
+if TYPE_CHECKING:
+    from .context import Context
+    from .workflow import Workflow
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +95,14 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
     @property
     def output_fields(self) -> Mapping[str, tuple[ValueType, bool]]:
         return get_data_fields(self.output_type)
+
+    @cached_property
+    def input_schema(self) -> ObjectJSONSchema:
+        return self.input_type.to_schema()
+
+    @cached_property
+    def output_schema(self) -> ObjectJSONSchema:
+        return self.output_type.to_schema()
 
     def __init_subclass__(cls, **kwargs: Unpack[ConfigDict]):
         super().__init_subclass__(**kwargs)  # type: ignore
@@ -173,9 +183,7 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
         self,
         context: "Context",
         input: DataMapping,
-    ) -> Union[
-        DataMapping, "Workflow"
-    ]:  # Using Union instead of | due to Python 3.12 TypeAlias bug
+    ) -> "DataMapping | Workflow":
         try:
             logger.info("Starting node %s", self.id)
             output = await context.on_node_start(node=self, input=input)
@@ -216,13 +224,14 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
                 assert isinstance(e, Exception)
                 raise NodeException(self.id) from e
 
+    # HACK: we can't actaully make this method abstract because we need to
+    # instantiate Nodes for deserialization
     # @abstractmethod
-    # Using Union instead of | due to Python 3.12 TypeAlias bug
     async def run(
         self,
         context: "Context",
         input: Input_contra,
-    ) -> Union[Output_co, "Workflow"]:
+    ) -> "Output_co | Workflow":
         raise NotImplementedError("Subclasses must implement this method")
 
     def with_namespace(self, namespace: str) -> Self:
@@ -240,10 +249,10 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
 
 class NodeRegistry:
     def __init__(self):
-        self.types: dict[str, type["Node"]] = {}
-        self.base_classes: list[type["Node"]] = []
+        self.types: dict[str, Type["Node"]] = {}
+        self.base_classes: list[Type["Node"]] = []
 
-    def register(self, type: str, cls: type["Node"]):
+    def register(self, type: str, cls: Type["Node"]):
         if type in self.types and cls is not self.types[type]:
             raise ValueError(
                 f'Node type "{type}" is already registered to a different class'
@@ -251,17 +260,17 @@ class NodeRegistry:
         self.types[type] = cls
         logger.info("Registering class %s as node type %s", cls.__name__, type)
 
-    def get(self, type: str) -> type["Node"]:
+    def get(self, type: str) -> Type["Node"]:
         if type not in self.types:
             raise ValueError(f'Node type "{type}" is not registered')
         return self.types[type]
 
-    def register_base(self, cls: type["Node"]):
+    def register_base(self, cls: Type["Node"]):
         if cls not in self.base_classes:
             self.base_classes.append(cls)
             logger.info("Registering class %s as base node type", cls.__name__)
 
-    def is_base_class(self, cls: type["Node"]) -> bool:
+    def is_base_class(self, cls: Type["Node"]) -> bool:
         return cls in self.base_classes
 
 

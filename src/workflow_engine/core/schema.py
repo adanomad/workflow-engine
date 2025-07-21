@@ -12,12 +12,12 @@ import json
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Set
 from functools import cached_property
-from typing import Any, Literal, Type, TypeAlias
+from typing import Any, Literal
 
 from overrides import override
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from .data import Data, DataValue, build_data_type
+from .data import DataType, DataValue, build_data_type
 from .value import (
     BooleanValue,
     FloatValue,
@@ -147,7 +147,7 @@ class SequenceJSONSchema(BaseJSONSchema):
     """
 
     type: Literal["array"]
-    items: JSONSchemaUnion
+    items: JSONSchema
     minItems: int | None = None
     maxItems: int | None = None
     uniqueItems: bool | None = None
@@ -164,7 +164,7 @@ class StringMapJSONSchema(BaseJSONSchema):
     """
 
     type: Literal["object"]
-    additionalProperties: JSONSchemaUnion
+    additionalProperties: JSONSchema
 
     @property
     @override
@@ -178,12 +178,11 @@ class ObjectJSONSchema(BaseJSONSchema):
     """
 
     type: Literal["object"]
-    properties: Mapping[str, JSONSchemaUnion]
+    properties: Mapping[str, JSONSchema]
     required: Set[str] = Field(default_factory=set)
-    additionalProperties: bool = False
 
     @cached_property
-    def data_type(self) -> Type[Data]:
+    def data_type(self) -> DataType:
         return build_data_type(
             "ObjectData",
             {k: (v.value_type, k in self.required) for k, v in self.properties.items()},
@@ -231,7 +230,7 @@ class JSONSchemaRef(BaseJSONSchema):
         return JSONSchemaRef.from_ref(f"#/$defs/{name}")
 
 
-JSONSchemaUnion: TypeAlias = (
+type JSONSchema = (
     BooleanJSONSchema
     | IntegerJSONSchema
     | JSONSchemaRef
@@ -244,22 +243,22 @@ JSONSchemaUnion: TypeAlias = (
 )
 
 
-class JSONSchemaValue(Value[JSONSchemaUnion]):
+class JSONSchemaValue(Value[JSONSchema]):
     """
-    A wrapper class to allow users to read any of the JSONSchemaUnion types.
+    A wrapper class to allow users to read any of the JSONSchema types.
     """
 
     @staticmethod
-    def loads(s: str) -> JSONSchemaUnion:
+    def loads(s: str) -> JSONSchema:
         """
-        Convert a JSON string to a JSONSchemaUnion.
+        Convert a JSON string to a JSONSchema.
         """
         return JSONSchemaValue.model_validate_json(s).root
 
     @staticmethod
-    def load(d: Mapping[str, Any]) -> JSONSchemaUnion:
+    def load(d: Mapping[str, Any]) -> JSONSchema:
         """
-        Convert a Python dictionary object to a JSONSchemaUnion.
+        Convert a Python dictionary object to a JSONSchema.
         """
         return JSONSchemaValue.loads(json.dumps(d))
 

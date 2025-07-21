@@ -14,6 +14,7 @@ from ..core import (
     BooleanValue,
     Context,
     Data,
+    DataType,
     Workflow,
     Empty,
     Node,
@@ -103,7 +104,7 @@ class IfElseNode(Node[ConditionalInput, Data, IfElseParams]):
 
     @property
     @override
-    def output_type(self) -> Type[Data]:
+    def output_type(self) -> DataType:
         fields = mapping_intersection(
             self.params.if_true.output_fields,
             self.params.if_false.output_fields,
