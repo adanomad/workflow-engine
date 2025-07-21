@@ -224,7 +224,7 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
                 assert isinstance(e, Exception)
                 raise NodeException(self.id) from e
 
-    # HACK: we can't actaully make this method abstract because we need to
+    # HACK: we can't actually make this method abstract because we need to
     # instantiate Nodes for deserialization
     # @abstractmethod
     async def run(
