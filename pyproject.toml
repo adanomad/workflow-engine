@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "workflow-engine"
-version = "0.2.0"
+version = "0.3.0"
 description = "A simple engine to execute workflows defined as JSON graphs"
 readme = "README.md"
 authors = [
