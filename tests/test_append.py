@@ -6,7 +6,6 @@ from workflow_engine.execution import TopologicalExecutionAlgorithm
 from workflow_engine.files import TextFileValue
 from workflow_engine.nodes import (
     AppendToFileNode,
-    AppendToFileParams,
 )
 
 
@@ -15,9 +14,9 @@ def workflow():
     """Helper function to create the append workflow."""
     return Workflow(
         nodes=[
-            append := AppendToFileNode(
+            append := AppendToFileNode.from_suffix(
                 id="append",
-                params=AppendToFileParams(suffix=StringValue("_append")),
+                suffix="_append",
             ),
         ],
         edges=[],

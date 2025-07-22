@@ -1,6 +1,6 @@
 # workflow_engine/core/__init__.py
 from .context import Context
-from .data import Data, DataMapping
+from .data import Data, DataMapping, DataValue
 from .edge import Edge, InputEdge, OutputEdge
 from .error import NodeException, UserException, WorkflowErrors
 from .execution import ExecutionAlgorithm
@@ -16,6 +16,7 @@ from .value import (
     StringMapValue,
     StringValue,
     Value,
+    ValueType,
 )
 from .workflow import Workflow
 
@@ -25,6 +26,7 @@ __all__ = [
     "Context",
     "Data",
     "DataMapping",
+    "DataValue",
     "Edge",
     "Empty",
     "ExecutionAlgorithm",
@@ -43,6 +45,7 @@ __all__ = [
     "StringValue",
     "UserException",
     "Value",
+    "ValueType",
     "Workflow",
     "WorkflowErrors",
 ]

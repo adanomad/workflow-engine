@@ -21,30 +21,27 @@ def add_one_workflow() -> Workflow:
 
     return Workflow(
         nodes=[
-            one := ConstantIntegerNode.from_value(
-                node_id="one",
-                value=1,
-            ),
+            one := ConstantIntegerNode.from_value(id="one", value=1),
             add_one := AddNode(id="add_one"),
         ],
         edges=[
-            Edge(
-                source_id=one.id,
+            Edge.from_nodes(
+                source=one,
                 source_key="value",
-                target_id=add_one.id,
+                target=add_one,
                 target_key="b",
             ),
         ],
         input_edges=[
-            InputEdge(
+            InputEdge.from_node(
                 input_key="start",
-                target_id=add_one.id,
+                target=add_one,
                 target_key="a",
             ),
         ],
         output_edges=[
-            OutputEdge(
-                source_id=add_one.id,
+            OutputEdge.from_node(
+                source=add_one,
                 source_key="sum",
                 output_key="result",
             ),
@@ -58,30 +55,27 @@ def subtract_one_workflow() -> Workflow:
 
     return Workflow(
         nodes=[
-            negative_one := ConstantIntegerNode.from_value(
-                node_id="negative_one",
-                value=-1,
-            ),
+            negative_one := ConstantIntegerNode.from_value(id="negative_one", value=-1),
             subtract_one := AddNode(id="subtract_one"),
         ],
         edges=[
-            Edge(
-                source_id=negative_one.id,
+            Edge.from_nodes(
+                source=negative_one,
                 source_key="value",
-                target_id=subtract_one.id,
+                target=subtract_one,
                 target_key="b",
             ),
         ],
         input_edges=[
-            InputEdge(
+            InputEdge.from_node(
                 input_key="start",
-                target_id=subtract_one.id,
+                target=subtract_one,
                 target_key="a",
             ),
         ],
         output_edges=[
-            OutputEdge(
-                source_id=subtract_one.id,
+            OutputEdge.from_node(
+                source=subtract_one,
                 source_key="sum",
                 output_key="result",
             ),
@@ -104,7 +98,7 @@ async def test_conditional_workflow(
     workflow = Workflow(
         nodes=[
             conditional := IfElseNode.from_workflows(
-                node_id="conditional",
+                id="conditional",
                 if_true=add_one_workflow,
                 if_false=subtract_one_workflow,
             ),
@@ -169,21 +163,21 @@ async def test_conditional_workflow_twice_series(
     workflow = Workflow(
         nodes=[
             conditional_1 := IfElseNode.from_workflows(
-                node_id="conditional_1",
+                id="conditional_1",
                 if_true=add_one_workflow,
                 if_false=subtract_one_workflow,
             ),
             conditional_2 := IfElseNode.from_workflows(
-                node_id="conditional_2",
+                id="conditional_2",
                 if_true=add_one_workflow,
                 if_false=subtract_one_workflow,
             ),
         ],
         edges=[
-            Edge(
-                source_id=conditional_1.id,
+            Edge.from_nodes(
+                source=conditional_1,
                 source_key="result",
-                target_id=conditional_2.id,
+                target=conditional_2,
                 target_key="start",
             ),
         ],
