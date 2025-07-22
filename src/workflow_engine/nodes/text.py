@@ -27,7 +27,7 @@ class AppendToFileParams(Params):
 
 
 class AppendToFileNode(Node[AppendToFileInput, AppendToFileOutput, AppendToFileParams]):
-    type: Literal["AppendToFile"] = "AppendToFile"
+    type: Literal["AppendToFile"] = "AppendToFile"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
     def input_type(self):

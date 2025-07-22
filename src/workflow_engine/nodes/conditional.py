@@ -48,7 +48,7 @@ class IfNode(Node[ConditionalInput, Empty, IfParams]):
 
     # TODO: allow conditional nodes with optional output
 
-    type: Literal["If"] = "If"
+    type: Literal["If"] = "If"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
     @override
@@ -90,7 +90,7 @@ class IfElseNode(Node[ConditionalInput, Data, IfElseParams]):
 
     # TODO: allow union types
 
-    type: Literal["IfElse"] = "IfElse"
+    type: Literal["IfElse"] = "IfElse"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
     @override

@@ -27,7 +27,7 @@ class SumOutput(Data):
 
 
 class AddNode(Node[AddNodeInput, SumOutput, Empty]):
-    type: Literal["Add"] = "Add"
+    type: Literal["Add"] = "Add"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
     def input_type(self):
@@ -50,7 +50,7 @@ class SumNodeOutput(Data):
 
 
 class SumNode(Node[SumNodeInput, SumNodeOutput, Empty]):
-    type: Literal["Sum"] = "Sum"
+    type: Literal["Sum"] = "Sum"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
     def input_type(self):
@@ -73,7 +73,7 @@ class FactorizationData(Data):
 
 
 class FactorizationNode(Node[IntegerData, FactorizationData, Params]):
-    type: Literal["Factorization"] = "Factorization"
+    type: Literal["Factorization"] = "Factorization"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
     def input_type(self):

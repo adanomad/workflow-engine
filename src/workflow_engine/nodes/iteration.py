@@ -45,7 +45,7 @@ class ForEachNode(Node[SequenceData, SequenceData, ForEachParams]):
     sequence, with each item being the output of the internal workflow.
     """
 
-    type: Literal["ForEach"] = "ForEach"
+    type: Literal["ForEach"] = "ForEach"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
     @override

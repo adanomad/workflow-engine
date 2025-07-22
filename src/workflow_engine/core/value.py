@@ -227,9 +227,9 @@ class Value(RootModel[T], Generic[T]):
         return cls.get_caster(t) is not None
 
     def __eq__(self, other):
-        if not isinstance(other, Value):
-            return False
-        return self.root == other.root
+        if isinstance(other, Value):
+            return self.root == other.root
+        return self.root == other
 
     def __hash__(self):
         return hash(self.root)

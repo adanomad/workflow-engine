@@ -52,7 +52,7 @@ class GatherSequenceNode(Node[Data, SequenceData, SequenceParams]):
         {"sequence": [0, 1, 2]}
     """
 
-    type: Literal["GatherSequence"] = "GatherSequence"
+    type: Literal["GatherSequence"] = "GatherSequence"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     # The type of the elements in the sequence.
     # For now, this field is only available when the node is constructed
@@ -108,7 +108,7 @@ class ExpandSequenceNode(Node[SequenceData, Data, SequenceParams]):
     Extracts a sequence of elements to a data object.
     """
 
-    type: Literal["ExpandSequence"] = "ExpandSequence"
+    type: Literal["ExpandSequence"] = "ExpandSequence"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     # The type of the element to extract.
     # For now, this field is only available when the node is constructed
@@ -185,7 +185,7 @@ class GatherMappingNode(Node[Data, MappingData, MappingParams]):
         {"mapping": {"a": 1, "b": 2, "c": 3}}
     """
 
-    type: Literal["GatherMapping"] = "GatherMapping"
+    type: Literal["GatherMapping"] = "GatherMapping"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     # The type of the values in the mapping.
     # For now, this field is only available when the node is constructed
@@ -238,7 +238,7 @@ class ExpandMappingNode(Node[MappingData, Data, MappingParams]):
         {"a": 1, "b": 2, "c": 3}
     """
 
-    type: Literal["ExpandMapping"] = "ExpandMapping"
+    type: Literal["ExpandMapping"] = "ExpandMapping"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     # The type of the values in the mapping.
     # For now, this field is only available when the node is constructed
@@ -300,7 +300,7 @@ class GatherDataNode(Node[Data, NestedData, Empty]):
         {"data": {"a": 1, "b": 2, "c": 3}}
     """
 
-    type: Literal["GatherData"] = "GatherData"
+    type: Literal["GatherData"] = "GatherData"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     # The type of the element to extract.
     # For now, this field is only available when the node is constructed
@@ -341,7 +341,7 @@ class ExpandDataNode(Node[NestedData, Data, Empty]):
         {"a": 1, "b": 2, "c": 3}
     """
 
-    type: Literal["ExpandData"] = "ExpandData"
+    type: Literal["ExpandData"] = "ExpandData"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     # The type of the nested data object.
     # For now, this field is only available when the node is constructed

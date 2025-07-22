@@ -21,7 +21,7 @@ def context():
 @pytest.mark.unit
 async def test_cast_jsonlines_to_sequence(context: Context):
     """Test that JSONLinesFileValue can be cast to a SequenceValue."""
-    jsonl_file = JSONLinesFileValue(File(path="input.jsonl"))
+    jsonl_file = JSONLinesFileValue.from_path("input.jsonl")
 
     await jsonl_file.write_data(context, [{"a": 1}, {"b": 2}, {"c": 3}])
 

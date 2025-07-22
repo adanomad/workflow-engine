@@ -18,7 +18,7 @@ class File(BaseModel, ABC):
     A Context provides the actual implementation to read the file's contents.
     """
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True, extra="forbid")
     metadata: Mapping[str, Any] = Field(default_factory=dict)
     mime_type: ClassVar[str]
     path: str
@@ -47,6 +47,10 @@ class FileValue(Value[File]):
         metadata = dict(self.root.metadata)
         metadata[key] = value
         return type(self)(self.root.model_copy(update={"metadata": metadata}))
+
+    @classmethod
+    def from_path(cls, path: str, **metadata: Any) -> Self:
+        return cls(root=File(path=path, metadata=metadata))
 
 
 __all__ = [

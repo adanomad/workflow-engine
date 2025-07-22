@@ -18,7 +18,7 @@ class ConstantBoolean(Params):
 
 
 class ConstantBooleanNode(Node[Empty, ConstantBoolean, ConstantBoolean]):
-    type: Literal["ConstantBoolean"] = "ConstantBoolean"
+    type: Literal["ConstantBoolean"] = "ConstantBoolean"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
     def output_type(self) -> Type[ConstantBoolean]:
@@ -37,7 +37,7 @@ class ConstantInteger(Params):
 
 
 class ConstantIntegerNode(Node[Empty, ConstantInteger, ConstantInteger]):
-    type: Literal["ConstantInteger"] = "ConstantInteger"
+    type: Literal["ConstantInteger"] = "ConstantInteger"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
     def output_type(self) -> Type[ConstantInteger]:
@@ -56,7 +56,7 @@ class ConstantString(Params):
 
 
 class ConstantStringNode(Node[Empty, ConstantString, ConstantString]):
-    type: Literal["ConstantString"] = "ConstantString"
+    type: Literal["ConstantString"] = "ConstantString"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
     def output_type(self) -> Type[ConstantString]:
