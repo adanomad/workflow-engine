@@ -3,7 +3,6 @@ import pytest
 from workflow_engine import (
     BooleanValue,
     Edge,
-    FloatValue,
     InputEdge,
     IntegerValue,
     OutputEdge,
@@ -134,7 +133,7 @@ async def test_conditional_workflow(
         },
     )
     assert not errors.any(), errors
-    assert output == {"result": FloatValue(start_value - 1)}
+    assert output == {"result": start_value - 1}
 
     errors, output = await algorithm.execute(
         context=context,
@@ -145,7 +144,7 @@ async def test_conditional_workflow(
         },
     )
     assert not errors.any(), errors
-    assert output == {"result": FloatValue(start_value + 1)}
+    assert output == {"result": start_value + 1}
 
 
 @pytest.mark.asyncio
@@ -217,7 +216,7 @@ async def test_conditional_workflow_twice_series(
         },
     )
     assert not errors.any(), errors
-    assert output == {"result": FloatValue(start_value)}
+    assert output == {"result": start_value}
 
     errors, output = await algorithm.execute(
         context=context,
@@ -229,7 +228,7 @@ async def test_conditional_workflow_twice_series(
         },
     )
     assert not errors.any(), errors
-    assert output == {"result": FloatValue(start_value)}
+    assert output == {"result": start_value}
 
     errors, output = await algorithm.execute(
         context=context,
@@ -241,7 +240,7 @@ async def test_conditional_workflow_twice_series(
         },
     )
     assert not errors.any(), errors
-    assert output == {"result": FloatValue(start_value + 2)}
+    assert output == {"result": start_value + 2}
 
     errors, output = await algorithm.execute(
         context=context,
@@ -253,4 +252,4 @@ async def test_conditional_workflow_twice_series(
         },
     )
     assert not errors.any(), errors
-    assert output == {"result": FloatValue(start_value - 2)}
+    assert output == {"result": start_value - 2}

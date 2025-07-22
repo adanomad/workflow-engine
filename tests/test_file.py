@@ -22,22 +22,18 @@ def context():
 async def test_cast_jsonlines_to_sequence(context: Context):
     """Test that JSONLinesFileValue can be cast to a SequenceValue."""
     jsonl_file = JSONLinesFileValue.from_path("input.jsonl")
+    contents = [{"a": 1}, {"b": 2}, {"c": 3}]
+    contents_str = '{"a": 1}\n{"b": 2}\n{"c": 3}'
 
-    await jsonl_file.write_data(context, [{"a": 1}, {"b": 2}, {"c": 3}])
+    await jsonl_file.write_data(context, contents)
 
-    assert (await jsonl_file.read_text(context)) == '{"a": 1}\n{"b": 2}\n{"c": 3}'
+    assert (await jsonl_file.read_text(context)) == contents_str
 
     data = await SequenceValue[StringMapValue[IntegerValue]].cast_from(
         jsonl_file,
         context=context,
     )
-    assert data == SequenceValue[StringMapValue[IntegerValue]](
-        [
-            StringMapValue({"a": IntegerValue(1)}),
-            StringMapValue({"b": IntegerValue(2)}),
-            StringMapValue({"c": IntegerValue(3)}),
-        ]
-    )
+    assert data == contents
 
     json_files = await SequenceValue[JSONFileValue].cast_from(
         jsonl_file,

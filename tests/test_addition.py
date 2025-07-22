@@ -2,7 +2,6 @@ import pytest
 
 from workflow_engine import (
     Edge,
-    FloatValue,
     InputEdge,
     IntegerValue,
     OutputEdge,
@@ -86,4 +85,4 @@ async def test_workflow_execution(workflow: Workflow):
         input={"c": IntegerValue(c)},
     )
     assert not errors.any()
-    assert output == {"sum": FloatValue(42 + 2025 + c)}
+    assert output == {"sum": 42 + 2025 + c}

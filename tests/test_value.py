@@ -91,25 +91,25 @@ async def test_basic_casting(context):
     int_val = IntegerValue(42)
     str_val = await int_val.cast_to(StringValue, context=context)
     assert isinstance(str_val, StringValue)
-    assert str_val.root == "42"
+    assert str_val == "42"
 
     # String to Integer
     str_val = StringValue("123")
     int_val = await str_val.cast_to(IntegerValue, context=context)
     assert isinstance(int_val, IntegerValue)
-    assert int_val.root == 123
+    assert int_val == 123
 
     # String to Float
     str_val = StringValue("3.14")
     float_val = await str_val.cast_to(FloatValue, context=context)
     assert isinstance(float_val, FloatValue)
-    assert float_val.root == 3.14
+    assert float_val == 3.14
 
     # Integer to Float
     int_val = IntegerValue(42)
     float_val = await int_val.cast_to(FloatValue, context=context)
     assert isinstance(float_val, FloatValue)
-    assert float_val.root == 42.0
+    assert float_val == 42.0
 
 
 @pytest.mark.unit
@@ -175,19 +175,19 @@ async def test_cast_from_class_method(context):
     int_val = IntegerValue(42)
     str_val = await StringValue.cast_from(int_val, context=context)
     assert isinstance(str_val, StringValue)
-    assert str_val.root == "42"
+    assert str_val == "42"
 
     # Test IntegerValue.cast_from
     str_val = StringValue("123")
     int_val = await IntegerValue.cast_from(str_val, context=context)
     assert isinstance(int_val, IntegerValue)
-    assert int_val.root == 123
+    assert int_val == 123
 
     # Test FloatValue.cast_from
     int_val = IntegerValue(42)
     float_val = await FloatValue.cast_from(int_val, context=context)
     assert isinstance(float_val, FloatValue)
-    assert float_val.root == 42.0
+    assert float_val == 42.0
 
 
 @pytest.mark.unit
@@ -197,7 +197,7 @@ async def test_cast_cache(context):
 
     # First cast should compute the result
     str_val1 = await int_val.cast_to(StringValue, context=context)
-    assert str_val1.root == "42"
+    assert str_val1 == "42"
 
     # Second cast should use cache
     str_val2 = await int_val.cast_to(StringValue, context=context)
@@ -314,7 +314,7 @@ async def test_cast_registration(context):
     assert QuestionValue.can_cast_to(AnswerValue)
     question = QuestionValue("the universe")
     answer = await question.cast_to(AnswerValue, context=context)
-    assert answer.root == 42
+    assert answer == 42
 
     # Try to register the same cast again (after casting operations)
     with pytest.raises(
@@ -400,12 +400,12 @@ async def test_async_caster_registration_and_usage(context):
     # Test async casting
     result = await test_value.cast_to(StringValue, context=context)
     assert isinstance(result, StringValue)
-    assert result.root == "converted: hello world"
+    assert result == "converted: hello world"
 
     # Test classmethod usage
     result_from = await StringValue.cast_from(test_value, context=context)
     assert isinstance(result_from, StringValue)
-    assert result_from.root == "converted: hello world"
+    assert result_from == "converted: hello world"
 
 
 if __name__ == "__main__":
