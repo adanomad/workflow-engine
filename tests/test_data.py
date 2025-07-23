@@ -1,5 +1,6 @@
 # tests/test_node.py
 from collections.abc import Mapping
+from typing import Type
 
 import pytest
 from pydantic import ValidationError
@@ -10,7 +11,7 @@ from workflow_engine.core.value import ValueType
 
 
 @pytest.fixture
-def ExampleData() -> type[Data]:
+def ExampleData() -> Type[Data]:
     """Test data class."""
 
     class ExampleData(Data):
@@ -34,7 +35,8 @@ def example_fields() -> Mapping[str, tuple[ValueType, bool]]:
 
 @pytest.mark.unit
 def test_get_data_fields(
-    ExampleData: type[Data], example_fields: Mapping[str, tuple[ValueType, bool]]
+    ExampleData: Type[Data],
+    example_fields: Mapping[str, tuple[ValueType, bool]],
 ):
     """Test that get_data_fields returns the correct fields."""
 
@@ -43,7 +45,8 @@ def test_get_data_fields(
 
 @pytest.mark.unit
 def test_build_data_type(
-    ExampleData: type[Data], example_fields: Mapping[str, tuple[ValueType, bool]]
+    ExampleData: Type[Data],
+    example_fields: Mapping[str, tuple[ValueType, bool]],
 ):
     """Test that build_data_type returns the correct class."""
 

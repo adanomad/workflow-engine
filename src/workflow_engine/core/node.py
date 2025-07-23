@@ -90,7 +90,7 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
         return Empty  # type: ignore
 
     @property
-    def input_fields(self) -> Mapping[str, tuple[ValueType, bool]]:
+    def input_fields(self) -> Mapping[str, tuple[ValueType, bool]]:  # type: ignore
         return get_data_fields(self.input_type)
 
     @property
@@ -100,6 +100,8 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
     def __init_subclass__(cls, **kwargs: Unpack[ConfigDict]):
         super().__init_subclass__(**kwargs)  # type: ignore
 
+        # NOTE: something about this hack does not work when using
+        # `from __future__ import annotations`.
         while generic_pattern.match(cls.__name__) is not None:
             assert cls.__base__ is not None
             cls = cls.__base__
@@ -245,10 +247,10 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
 
 class NodeRegistry:
     def __init__(self):
-        self.types: dict[str, type["Node"]] = {}
-        self.base_classes: list[type["Node"]] = []
+        self.types: dict[str, Type[Node]] = {}
+        self.base_classes: list[Type[Node]] = []
 
-    def register(self, type: str, cls: type["Node"]):
+    def register(self, type: str, cls: Type[Node]):
         if type in self.types and cls is not self.types[type]:
             raise ValueError(
                 f'Node type "{type}" is already registered to a different class'
@@ -256,17 +258,17 @@ class NodeRegistry:
         self.types[type] = cls
         logger.info("Registering class %s as node type %s", cls.__name__, type)
 
-    def get(self, type: str) -> type["Node"]:
+    def get(self, type: str) -> Type[Node]:
         if type not in self.types:
             raise ValueError(f'Node type "{type}" is not registered')
         return self.types[type]
 
-    def register_base(self, cls: type["Node"]):
+    def register_base(self, cls: Type[Node]):
         if cls not in self.base_classes:
             self.base_classes.append(cls)
             logger.info("Registering class %s as base node type", cls.__name__)
 
-    def is_base_class(self, cls: type["Node"]) -> bool:
+    def is_base_class(self, cls: Type[Node]) -> bool:
         return cls in self.base_classes
 
 

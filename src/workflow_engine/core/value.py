@@ -1,4 +1,6 @@
 # workflow_engine/core/value.py
+from __future__ import annotations
+
 import asyncio
 import inspect
 from collections.abc import ItemsView, Iterator, KeysView, Mapping, Sequence, ValuesView
@@ -7,13 +9,13 @@ from hashlib import md5
 from logging import getLogger
 from typing import (
     TYPE_CHECKING,
+    Any,
     Awaitable,
     ClassVar,
     Generic,
     Protocol,
     Self,
     Type,
-    TypeAliasType,
     TypeVar,
 )
 
@@ -28,7 +30,7 @@ logger = getLogger(__name__)
 
 T = TypeVar("T")
 V = TypeVar("V", bound="Value")
-type ValueType = Type["Value"]
+type ValueType = Type[Value]
 
 
 def get_origin_and_args(t: ValueType) -> tuple[ValueType, tuple[ValueType, ...]]:
@@ -54,7 +56,7 @@ def get_origin_and_args(t: ValueType) -> tuple[ValueType, tuple[ValueType, ...]]
         return origin, tuple(args)
 
 
-ValueTypeKey = TypeAliasType("ValueTypeKey", tuple[str, tuple["ValueTypeKey", ...]])
+type ValueTypeKey = tuple[str, tuple[ValueTypeKey, ...]]
 
 
 def get_value_type_key(t: ValueType) -> ValueTypeKey:
@@ -291,6 +293,11 @@ class StringValue(Value[str]):
     def __len__(self) -> int:
         return len(self.root)
 
+    def __contains__(self, substring: str | StringValue) -> bool:
+        if isinstance(substring, StringValue):
+            substring = substring.root
+        return substring in self.root
+
 
 class SequenceValue(Value[Sequence[V]], Generic[V]):
     def __getitem__(self, index: int | IntegerValue) -> V:
@@ -301,8 +308,13 @@ class SequenceValue(Value[Sequence[V]], Generic[V]):
     def __len__(self) -> int:
         return len(self.root)
 
-    def __iter__(self) -> Iterator[V]:
+    def __iter__(self) -> Iterator[V]:  # pyright: ignore[reportIncompatibleMethodOverride]
+        # NOTE: This convenience method breaks Pydantic's dict(value) behaviour,
+        # for better or worse. We will revert if this actually causes problems.
         yield from self.root
+
+    def __contains__(self, item: Any) -> bool:
+        return any(x == item for x in self.root)
 
 
 class StringMapValue(Value[Mapping[str, V]], Generic[V]):
@@ -319,7 +331,9 @@ class StringMapValue(Value[Mapping[str, V]], Generic[V]):
     def __len__(self) -> int:
         return len(self.root)
 
-    def __iter__(self) -> Iterator[str]:
+    def __iter__(self) -> Iterator[str]:  # pyright: ignore[reportIncompatibleMethodOverride]
+        # NOTE: This convenience method breaks Pydantic's dict(value) behaviour,
+        # for better or worse. We will revert if this actually causes problems.
         yield from self.root
 
     def items(self) -> ItemsView[str, V]:
@@ -330,6 +344,11 @@ class StringMapValue(Value[Mapping[str, V]], Generic[V]):
 
     def values(self) -> ValuesView[V]:
         return self.root.values()
+
+    def __contains__(self, key: str | StringValue) -> bool:
+        if isinstance(key, StringValue):
+            key = key.root
+        return key in self.root
 
 
 @IntegerValue.register_cast_to(FloatValue)
