@@ -288,15 +288,27 @@ class FloatValue(Value[float]):
 
 
 class StringValue(Value[str]):
-    pass
+    def __len__(self) -> int:
+        return len(self.root)
 
 
 class SequenceValue(Value[Sequence[V]], Generic[V]):
-    pass
+    def __getitem__(self, index: int) -> V:
+        return self.root[index]
+
+    def __len__(self) -> int:
+        return len(self.root)
 
 
 class StringMapValue(Value[Mapping[str, V]], Generic[V]):
-    pass
+    def __getitem__(self, key: str) -> V:
+        return self.root[key]
+
+    def get(self, key: str, default: V | None = None) -> V | None:
+        return self.root.get(key, default)
+
+    def __len__(self) -> int:
+        return len(self.root)
 
 
 @IntegerValue.register_cast_to(FloatValue)
