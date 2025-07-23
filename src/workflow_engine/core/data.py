@@ -3,7 +3,7 @@ import asyncio
 import json
 import logging
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, Generic, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict, create_model
 
@@ -37,7 +37,7 @@ class Data(BaseModel):
         return data
 
 
-DataMapping: TypeAlias = Mapping[str, Value]
+type DataMapping = Mapping[str, Value]
 
 
 def dump_data_mapping(data: DataMapping) -> Mapping[str, Any]:

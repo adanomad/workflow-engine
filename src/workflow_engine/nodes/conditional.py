@@ -14,10 +14,10 @@ from ..core import (
     BooleanValue,
     Context,
     Data,
-    Workflow,
     Empty,
     Node,
     Params,
+    Workflow,
 )
 from ..utils.mappings import mapping_intersection
 

@@ -1,12 +1,12 @@
 # tests/test_node.py
 from collections.abc import Mapping
-import pytest
 
+import pytest
 from pydantic import ValidationError
 
+from workflow_engine import BooleanValue, Data, IntegerValue, StringValue
 from workflow_engine.core.data import build_data_type, get_data_fields
 from workflow_engine.core.value import ValueType
-from workflow_engine import BooleanValue, Data, StringValue, IntegerValue
 
 
 @pytest.fixture

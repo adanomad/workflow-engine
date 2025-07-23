@@ -5,10 +5,10 @@ from collections.abc import Sequence
 from typing import Any, Self, Type
 
 from ..core import (
-    File,
     BooleanValue,
     Caster,
     Context,
+    File,
     FloatValue,
     IntegerValue,
     NullValue,
@@ -186,7 +186,7 @@ async def cast_sequence_to_json_lines(
     context: "Context",
 ) -> JSONLinesFileValue:
     file = JSONLinesFileValue(File(path=f"{value.md5}.jsonl"))
-    return await file.write_data(context, [v.model_dump() for v in value.root])
+    return await file.write_data(context, [v.model_dump() for v in value])
 
 
 __all__ = [

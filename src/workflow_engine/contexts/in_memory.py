@@ -22,7 +22,7 @@ class InMemoryContext(Context):
         self,
         file: FileValue,
     ) -> bytes:
-        return self.data[file.root.path]
+        return self.data[file.path]
 
     @override
     async def write(
@@ -30,7 +30,7 @@ class InMemoryContext(Context):
         file: F,
         content: bytes,
     ) -> F:
-        self.data[file.root.path] = content
+        self.data[file.path] = content
         return file
 
 

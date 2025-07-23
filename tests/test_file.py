@@ -1,15 +1,16 @@
 from hashlib import md5
+
 import pytest
 
 from workflow_engine import (
     Context,
     File,
     IntegerValue,
-    StringMapValue,
     SequenceValue,
+    StringMapValue,
 )
 from workflow_engine.contexts.in_memory import InMemoryContext
-from workflow_engine.files.json import JSONLinesFileValue, JSONFileValue
+from workflow_engine.files.json import JSONFileValue, JSONLinesFileValue
 
 
 @pytest.fixture
@@ -47,6 +48,6 @@ async def test_cast_jsonlines_to_sequence(context: Context):
             JSONFileValue(File(path=f"{md5(b"{'c': 3}").hexdigest()}.json")),
         ]
     )
-    assert (await json_files.root[0].read_data(context)) == {"a": 1}
-    assert (await json_files.root[1].read_data(context)) == {"b": 2}
-    assert (await json_files.root[2].read_data(context)) == {"c": 3}
+    assert (await json_files[0].read_data(context)) == {"a": 1}
+    assert (await json_files[1].read_data(context)) == {"b": 2}
+    assert (await json_files[2].read_data(context)) == {"c": 3}

@@ -61,7 +61,7 @@ class SumNode(Node[SumNodeInput, SumNodeOutput, Empty]):
         return SumNodeOutput
 
     async def run(self, context: Context, input: SumNodeInput) -> SumNodeOutput:
-        return SumNodeOutput(sum=FloatValue(sum(v.root for v in input.values.root)))
+        return SumNodeOutput(sum=FloatValue(sum(v.root for v in input.values)))
 
 
 class IntegerData(Data):

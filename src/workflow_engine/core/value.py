@@ -1,9 +1,9 @@
 # workflow_engine/core/value.py
 import asyncio
+import inspect
+from collections.abc import ItemsView, Iterator, KeysView, Mapping, Sequence, ValuesView
 from functools import cached_property
 from hashlib import md5
-import inspect
-from collections.abc import Mapping, Sequence
 from logging import getLogger
 from typing import (
     TYPE_CHECKING,
@@ -28,7 +28,7 @@ logger = getLogger(__name__)
 
 T = TypeVar("T")
 V = TypeVar("V", bound="Value")
-ValueType = TypeAliasType("ValueType", Type["Value"])
+type ValueType = Type["Value"]
 
 
 def get_origin_and_args(t: ValueType) -> tuple[ValueType, tuple[ValueType, ...]]:
@@ -234,6 +234,19 @@ class Value(RootModel[T], Generic[T]):
     def __hash__(self):
         return hash(self.root)
 
+    def __str__(self) -> str:
+        return str(self.root)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self.root})"
+
+    def __bool__(self) -> bool:
+        return bool(self.root)
+
+    @cached_property
+    def md5(self) -> str:
+        return md5(str(self).encode()).hexdigest()
+
     async def cast_to(self, t: Type[V], *, context: "Context") -> V:
         key = get_value_type_key(t)
         if key in self._cast_cache:
@@ -252,19 +265,6 @@ class Value(RootModel[T], Generic[T]):
     @classmethod
     async def cast_from(cls, v: "Value", *, context: "Context") -> Self:
         return await v.cast_to(cls, context=context)
-
-    def __str__(self) -> str:
-        return str(self.root)
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.root})"
-
-    def __bool__(self) -> bool:
-        return bool(self.root)
-
-    @cached_property
-    def md5(self) -> str:
-        return md5(str(self).encode()).hexdigest()
 
 
 ################################################################################
@@ -293,22 +293,43 @@ class StringValue(Value[str]):
 
 
 class SequenceValue(Value[Sequence[V]], Generic[V]):
-    def __getitem__(self, index: int) -> V:
+    def __getitem__(self, index: int | IntegerValue) -> V:
+        if isinstance(index, IntegerValue):
+            index = index.root
         return self.root[index]
 
     def __len__(self) -> int:
         return len(self.root)
 
+    def __iter__(self) -> Iterator[V]:
+        yield from self.root
+
 
 class StringMapValue(Value[Mapping[str, V]], Generic[V]):
-    def __getitem__(self, key: str) -> V:
+    def __getitem__(self, key: str | StringValue) -> V:
+        if isinstance(key, StringValue):
+            key = key.root
         return self.root[key]
 
-    def get(self, key: str, default: V | None = None) -> V | None:
+    def get(self, key: str | StringValue, default: V | None = None) -> V | None:
+        if isinstance(key, StringValue):
+            key = key.root
         return self.root.get(key, default)
 
     def __len__(self) -> int:
         return len(self.root)
+
+    def __iter__(self) -> Iterator[str]:
+        yield from self.root
+
+    def items(self) -> ItemsView[str, V]:
+        return self.root.items()
+
+    def keys(self) -> KeysView[str]:
+        return self.root.keys()
+
+    def values(self) -> ValuesView[V]:
+        return self.root.values()
 
 
 @IntegerValue.register_cast_to(FloatValue)
@@ -394,7 +415,7 @@ def cast_string_map_to_string_map(
         context: "Context",
     ) -> target_type:  # pyright: ignore[reportInvalidTypeForm]
         # Cast all values in parallel
-        items = list(value.root.items())
+        items = list(value.items())
         keys = [k for k, v in items]
         cast_tasks = [
             v.cast_to(target_value_type, context=context)  # type: ignore
