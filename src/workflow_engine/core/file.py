@@ -76,6 +76,10 @@ class FileValue(Value[File]):
         return self.root.path
 
     @property
+    def mime_type(self) -> str:
+        return self.root.mime_type
+
+    @property
     def metadata(self) -> Mapping[str, Any]:
         return self.root.metadata
 
