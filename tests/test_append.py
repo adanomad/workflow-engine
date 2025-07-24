@@ -69,6 +69,6 @@ async def test_workflow_execution(workflow: Workflow):
     # Verify the output file exists and has the correct content
     output_file = output["file"]
     assert isinstance(output_file, TextFileValue)
-    assert output_file.root.path == "test_append.txt"
+    assert output_file.path == "test_append.txt"
     output_text = await output_file.read_text(context)
     assert output_text == hello_world + appended_text.root

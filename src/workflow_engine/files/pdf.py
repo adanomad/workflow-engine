@@ -1,9 +1,11 @@
 # workflow_engine/files/pdf.py
+from typing import ClassVar
+
 from ..core import FileValue
 
 
 class PDFFileValue(FileValue):
-    pass
+    mime_type: ClassVar[str] = "application/pdf"
 
 
 __all__ = [

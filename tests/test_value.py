@@ -27,19 +27,19 @@ def test_basic_value_creation():
     """Test basic Value creation and properties."""
     # Test StringValue
     str_val = StringValue("hello")
-    assert str_val.root == "hello"
+    assert str_val == "hello"
     assert isinstance(str_val, StringValue)
     assert isinstance(str_val, Value)
 
     # Test IntegerValue
     int_val = IntegerValue(42)
-    assert int_val.root == 42
+    assert int_val == 42
     assert isinstance(int_val, IntegerValue)
     assert isinstance(int_val, Value)
 
     # Test FloatValue
     float_val = FloatValue(3.14)
-    assert float_val.root == 3.14
+    assert float_val == 3.14
     assert isinstance(float_val, FloatValue)
     assert isinstance(float_val, Value)
 
@@ -91,25 +91,25 @@ async def test_basic_casting(context):
     int_val = IntegerValue(42)
     str_val = await int_val.cast_to(StringValue, context=context)
     assert isinstance(str_val, StringValue)
-    assert str_val.root == "42"
+    assert str_val == "42"
 
     # String to Integer
     str_val = StringValue("123")
     int_val = await str_val.cast_to(IntegerValue, context=context)
     assert isinstance(int_val, IntegerValue)
-    assert int_val.root == 123
+    assert int_val == 123
 
     # String to Float
     str_val = StringValue("3.14")
     float_val = await str_val.cast_to(FloatValue, context=context)
     assert isinstance(float_val, FloatValue)
-    assert float_val.root == 3.14
+    assert float_val == 3.14
 
     # Integer to Float
     int_val = IntegerValue(42)
     float_val = await int_val.cast_to(FloatValue, context=context)
     assert isinstance(float_val, FloatValue)
-    assert float_val.root == 42.0
+    assert float_val == 42.0
 
 
 @pytest.mark.unit
@@ -119,17 +119,17 @@ async def test_sequence_value(context):
     int_sequence = SequenceValue[IntegerValue](
         [IntegerValue(1), IntegerValue(2), IntegerValue(3)]
     )
-    assert len(int_sequence.root) == 3
-    assert all(isinstance(x, IntegerValue) for x in int_sequence.root)
+    assert len(int_sequence) == 3
+    assert all(isinstance(x, IntegerValue) for x in int_sequence)
 
     # Cast to sequence of strings
     str_sequence = await int_sequence.cast_to(
         SequenceValue[StringValue], context=context
     )
     assert isinstance(str_sequence, SequenceValue)
-    assert len(str_sequence.root) == 3
-    assert all(isinstance(x, StringValue) for x in str_sequence.root)
-    assert [x.root for x in str_sequence.root] == ["1", "2", "3"]
+    assert len(str_sequence) == 3
+    assert all(isinstance(x, StringValue) for x in str_sequence)
+    assert str_sequence == ["1", "2", "3"]
 
     # Cast back to sequence of integers
     int_sequence_again = await str_sequence.cast_to(
@@ -149,15 +149,15 @@ async def test_string_map_value(context):
             "c": IntegerValue(3),
         }
     )
-    assert len(int_map.root) == 3
-    assert all(isinstance(v, IntegerValue) for v in int_map.root.values())
+    assert len(int_map) == 3
+    assert all(isinstance(v, IntegerValue) for v in int_map.values())
 
     # Cast to map of strings
     str_map = await int_map.cast_to(StringMapValue[StringValue], context=context)
     assert isinstance(str_map, StringMapValue)
-    assert len(str_map.root) == 3
-    assert all(isinstance(v, StringValue) for v in str_map.root.values())
-    assert {k: v.root for k, v in str_map.root.items()} == {
+    assert len(str_map) == 3
+    assert all(isinstance(v, StringValue) for v in str_map.values())
+    assert str_map == {
         "a": "1",
         "b": "2",
         "c": "3",
@@ -175,19 +175,19 @@ async def test_cast_from_class_method(context):
     int_val = IntegerValue(42)
     str_val = await StringValue.cast_from(int_val, context=context)
     assert isinstance(str_val, StringValue)
-    assert str_val.root == "42"
+    assert str_val == "42"
 
     # Test IntegerValue.cast_from
     str_val = StringValue("123")
     int_val = await IntegerValue.cast_from(str_val, context=context)
     assert isinstance(int_val, IntegerValue)
-    assert int_val.root == 123
+    assert int_val == 123
 
     # Test FloatValue.cast_from
     int_val = IntegerValue(42)
     float_val = await FloatValue.cast_from(int_val, context=context)
     assert isinstance(float_val, FloatValue)
-    assert float_val.root == 42.0
+    assert float_val == 42.0
 
 
 @pytest.mark.unit
@@ -197,7 +197,7 @@ async def test_cast_cache(context):
 
     # First cast should compute the result
     str_val1 = await int_val.cast_to(StringValue, context=context)
-    assert str_val1.root == "42"
+    assert str_val1 == "42"
 
     # Second cast should use cache
     str_val2 = await int_val.cast_to(StringValue, context=context)
@@ -314,7 +314,7 @@ async def test_cast_registration(context):
     assert QuestionValue.can_cast_to(AnswerValue)
     question = QuestionValue("the universe")
     answer = await question.cast_to(AnswerValue, context=context)
-    assert answer.root == 42
+    assert answer == 42
 
     # Try to register the same cast again (after casting operations)
     with pytest.raises(
@@ -351,8 +351,8 @@ def test_sequence_value_json():
     # Test with simple sequence
     sequence_json = "[1, 2, 3]"
     sequence_val = SequenceValue[IntegerValue].model_validate_json(sequence_json)
-    assert len(sequence_val.root) == 3
-    assert [x.root for x in sequence_val.root] == [1, 2, 3]
+    assert len(sequence_val) == 3
+    assert sequence_val == [1, 2, 3]
 
     # Test serialization back to JSON
     json_str = sequence_val.model_dump_json()
@@ -365,8 +365,8 @@ def test_string_map_value_json():
     # Test with simple map
     map_json = '{"a": 1, "b": 2, "c": 3}'
     map_val = StringMapValue[IntegerValue].model_validate_json(map_json)
-    assert len(map_val.root) == 3
-    assert {k: v.root for k, v in map_val.root.items()} == {"a": 1, "b": 2, "c": 3}
+    assert len(map_val) == 3
+    assert map_val == {"a": 1, "b": 2, "c": 3}
 
     # Test serialization back to JSON
     json_str = map_val.model_dump_json()
@@ -400,12 +400,12 @@ async def test_async_caster_registration_and_usage(context):
     # Test async casting
     result = await test_value.cast_to(StringValue, context=context)
     assert isinstance(result, StringValue)
-    assert result.root == "converted: hello world"
+    assert result == "converted: hello world"
 
     # Test classmethod usage
     result_from = await StringValue.cast_from(test_value, context=context)
     assert isinstance(result_from, StringValue)
-    assert result_from.root == "converted: hello world"
+    assert result_from == "converted: hello world"
 
 
 if __name__ == "__main__":

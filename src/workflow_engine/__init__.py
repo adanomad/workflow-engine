@@ -5,6 +5,7 @@ from .core import (
     Caster,
     Context,
     Data,
+    DataMapping,
     DataValue,
     Edge,
     Empty,
@@ -23,6 +24,8 @@ from .core import (
     StringMapValue,
     StringValue,
     UserException,
+    Value,
+    ValueType,
     Workflow,
     WorkflowErrors,
 )
@@ -32,6 +35,7 @@ __all__ = [
     "Caster",
     "Context",
     "Data",
+    "DataMapping",
     "DataValue",
     "Edge",
     "Empty",
@@ -50,6 +54,8 @@ __all__ = [
     "StringMapValue",
     "StringValue",
     "UserException",
+    "Value",
+    "ValueType",
     "Workflow",
     "WorkflowErrors",
 ]

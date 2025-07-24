@@ -52,7 +52,7 @@ class GatherSequenceNode(Node[Data, SequenceData, SequenceParams]):
         {"sequence": [0, 1, 2]}
     """
 
-    type: Literal["GatherSequence"] = "GatherSequence"
+    type: Literal["GatherSequence"] = "GatherSequence"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     # The type of the elements in the sequence.
     # For now, this field is only available when the node is constructed
@@ -65,7 +65,8 @@ class GatherSequenceNode(Node[Data, SequenceData, SequenceParams]):
 
     @property
     def keys(self) -> Sequence[str]:
-        return [self.key(i) for i in range(self.params.length.root)]
+        N = self.params.length.root
+        return [self.key(i) for i in range(N)]
 
     @property
     @override
@@ -108,7 +109,7 @@ class ExpandSequenceNode(Node[SequenceData, Data, SequenceParams]):
     Extracts a sequence of elements to a data object.
     """
 
-    type: Literal["ExpandSequence"] = "ExpandSequence"
+    type: Literal["ExpandSequence"] = "ExpandSequence"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     # The type of the element to extract.
     # For now, this field is only available when the node is constructed
@@ -121,7 +122,8 @@ class ExpandSequenceNode(Node[SequenceData, Data, SequenceParams]):
 
     @property
     def keys(self) -> Sequence[str]:
-        return [self.key(i) for i in range(self.params.length.root)]
+        N = self.params.length.root
+        return [self.key(i) for i in range(N)]
 
     @property
     @override
@@ -142,12 +144,11 @@ class ExpandSequenceNode(Node[SequenceData, Data, SequenceParams]):
         context: Context,
         input: SequenceData,
     ) -> Data:
-        return self.output_type(
-            **{
-                self.key(i): input.sequence.root[i]
-                for i in range(self.params.length.root)
-            }
+        N = self.params.length.root
+        assert len(input.sequence) == N, (
+            f"Expected sequence of length {N}, but got {len(input.sequence)}"
         )
+        return self.output_type(**{self.key(i): input.sequence[i] for i in range(N)})
 
     @classmethod
     def from_length(
@@ -185,7 +186,7 @@ class GatherMappingNode(Node[Data, MappingData, MappingParams]):
         {"mapping": {"a": 1, "b": 2, "c": 3}}
     """
 
-    type: Literal["GatherMapping"] = "GatherMapping"
+    type: Literal["GatherMapping"] = "GatherMapping"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     # The type of the values in the mapping.
     # For now, this field is only available when the node is constructed
@@ -198,7 +199,7 @@ class GatherMappingNode(Node[Data, MappingData, MappingParams]):
     def input_type(self) -> Type[Data]:
         return build_data_type(
             "GatherMappingInput",
-            {key.root: (self.value_type, True) for key in self.params.keys.root},
+            {key.root: (self.value_type, True) for key in self.params.keys},
         )
 
     @property
@@ -210,7 +211,7 @@ class GatherMappingNode(Node[Data, MappingData, MappingParams]):
     async def run(self, context: Context, input: Data) -> MappingData:
         return self.output_type(
             mapping=StringMapValue[self.value_type](
-                {key.root: getattr(input, key.root) for key in self.params.keys.root}
+                {key.root: getattr(input, key.root) for key in self.params.keys}
             )
         )
 
@@ -238,7 +239,7 @@ class ExpandMappingNode(Node[MappingData, Data, MappingParams]):
         {"a": 1, "b": 2, "c": 3}
     """
 
-    type: Literal["ExpandMapping"] = "ExpandMapping"
+    type: Literal["ExpandMapping"] = "ExpandMapping"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     # The type of the values in the mapping.
     # For now, this field is only available when the node is constructed
@@ -256,13 +257,13 @@ class ExpandMappingNode(Node[MappingData, Data, MappingParams]):
     def output_type(self) -> Type[Data]:
         return build_data_type(
             "ExpandMappingOutput",
-            {key.root: (self.value_type, True) for key in self.params.keys.root},
+            {key.root: (self.value_type, True) for key in self.params.keys},
         )
 
     @override
     async def run(self, context: Context, input: MappingData) -> Data:
         return self.output_type(
-            **{key.root: input.mapping.root[key.root] for key in self.params.keys.root}
+            **{key.root: input.mapping[key] for key in self.params.keys}
         )
 
     @classmethod
@@ -300,7 +301,7 @@ class GatherDataNode(Node[Data, NestedData, Empty]):
         {"data": {"a": 1, "b": 2, "c": 3}}
     """
 
-    type: Literal["GatherData"] = "GatherData"
+    type: Literal["GatherData"] = "GatherData"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     # The type of the element to extract.
     # For now, this field is only available when the node is constructed
@@ -341,7 +342,7 @@ class ExpandDataNode(Node[NestedData, Data, Empty]):
         {"a": 1, "b": 2, "c": 3}
     """
 
-    type: Literal["ExpandData"] = "ExpandData"
+    type: Literal["ExpandData"] = "ExpandData"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     # The type of the nested data object.
     # For now, this field is only available when the node is constructed

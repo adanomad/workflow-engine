@@ -27,7 +27,7 @@ class AppendToFileParams(Params):
 
 
 class AppendToFileNode(Node[AppendToFileInput, AppendToFileOutput, AppendToFileParams]):
-    type: Literal["AppendToFile"] = "AppendToFile"
+    type: Literal["AppendToFile"] = "AppendToFile"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
     def input_type(self):
@@ -44,7 +44,7 @@ class AppendToFileNode(Node[AppendToFileInput, AppendToFileOutput, AppendToFileP
     ) -> AppendToFileOutput:
         old_text = await input.file.read_text(context)
         new_text = old_text + input.text.root
-        filename, ext = os.path.splitext(input.file.root.path)
+        filename, ext = os.path.splitext(input.file.path)
         new_file = TextFileValue(File(path=filename + self.params.suffix.root + ext))
         new_file = await new_file.write_text(context, text=new_text)
         return AppendToFileOutput(file=new_file)

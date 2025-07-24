@@ -12,8 +12,8 @@ from ..core import (
     DataValue,
     Edge,
     InputEdge,
-    OutputEdge,
     Node,
+    OutputEdge,
     Params,
     Workflow,
 )
@@ -45,7 +45,7 @@ class ForEachNode(Node[SequenceData, SequenceData, ForEachParams]):
     sequence, with each item being the output of the internal workflow.
     """
 
-    type: Literal["ForEach"] = "ForEach"
+    type: Literal["ForEach"] = "ForEach"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
     @override
@@ -59,7 +59,7 @@ class ForEachNode(Node[SequenceData, SequenceData, ForEachParams]):
 
     @override
     async def run(self, context: Context, input: SequenceData) -> Workflow:
-        N = len(input.sequence.root)
+        N = len(input.sequence)
         workflow = self.params.workflow
 
         nodes: list[Node] = []

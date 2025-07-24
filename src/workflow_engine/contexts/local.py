@@ -83,14 +83,14 @@ class LocalContext(Context):
         self,
         file: FileValue,
     ) -> bytes:
-        path = self.get_file_path(file.root.path)
+        path = self.get_file_path(file.path)
         if not os.path.exists(path):
-            raise UserException(f"File {file.root.path} not found")
+            raise UserException(f"File {file.path} not found")
         try:
             with open(path, "rb") as f:
                 return f.read()
         except Exception as e:
-            raise UserException(f"Failed to read file {file.root.path}") from e
+            raise UserException(f"Failed to read file {file.path}") from e
 
     @override
     async def write(
@@ -98,13 +98,13 @@ class LocalContext(Context):
         file: F,
         content: bytes,
     ) -> F:
-        path = self.get_file_path(file.root.path)
+        path = self.get_file_path(file.path)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         try:
             with open(path, "wb") as f:
                 f.write(content)
         except Exception as e:
-            raise UserException(f"Failed to write file {file.root.path}") from e
+            raise UserException(f"Failed to write file {file.path}") from e
         return file
 
     @override

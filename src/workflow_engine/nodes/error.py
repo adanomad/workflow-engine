@@ -7,8 +7,8 @@ from ..core import (
     Data,
     Empty,
     Node,
-    StringValue,
     Params,
+    StringValue,
     UserException,
 )
 
@@ -26,7 +26,7 @@ class ErrorNode(Node[ErrorInput, Empty, ErrorParams]):
     A node that always raises an error.
     """
 
-    type: Literal["Error"] = "Error"
+    type: Literal["Error"] = "Error"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
     def input_type(self):
