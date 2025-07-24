@@ -55,7 +55,7 @@ class FileValue(Value[File]):
             old_value = self.metadata[key]
             if old_value == value:
                 return self
-            elif overwrite:
+            elif not overwrite:
                 raise ValueError(
                     f"Metadata key {key} already exists with value {old_value}, which is different from the new value {value}. Pass overwrite=True to overwrite."
                 )
