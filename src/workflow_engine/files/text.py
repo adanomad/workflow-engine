@@ -1,10 +1,12 @@
 # workflow_engine/files/text.py
-from typing import Self
+from typing import ClassVar, Self
 
 from ..core import Context, File, FileValue, StringValue
 
 
 class TextFileValue(FileValue):
+    mime_type: ClassVar[str] = "text/plain"
+
     async def read_text(self, context: "Context") -> str:
         return (await self.read(context)).decode("utf-8")
 

@@ -23,7 +23,6 @@ class File(BaseModel, ABC):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True, extra="forbid")
     metadata: Mapping[str, Any] = Field(default_factory=dict)
-    mime_type: ClassVar[str]
     path: str
 
 
@@ -31,6 +30,8 @@ class FileValue(Value[File]):
     """
     A Value that represents a file.
     """
+
+    mime_type: ClassVar[str]
 
     async def read(self, context: "Context") -> bytes:
         return await context.read(file=self)
@@ -74,10 +75,6 @@ class FileValue(Value[File]):
     @property
     def path(self) -> str:
         return self.root.path
-
-    @property
-    def mime_type(self) -> str:
-        return self.root.mime_type
 
     @property
     def metadata(self) -> Mapping[str, Any]:

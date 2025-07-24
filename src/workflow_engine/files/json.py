@@ -2,7 +2,7 @@
 import datetime
 import json
 from collections.abc import Sequence
-from typing import Any, Self, Type
+from typing import Any, ClassVar, Self, Type
 
 from ..core import (
     BooleanValue,
@@ -32,6 +32,8 @@ class JSONFileValue(TextFileValue):
     """
     A Value that represents a JSON file.
     """
+
+    mime_type: ClassVar[str] = "application/json"
 
     async def read_data(self, context: "Context") -> Any:
         return json.loads(await self.read_text(context))
@@ -121,6 +123,8 @@ class JSONLinesFileValue(TextFileValue):
     """
     A file that contains a list of Python objects serialized as JSON.
     """
+
+    mime_type: ClassVar[str] = "application/jsonl"
 
     async def read_data(self, context: "Context") -> Sequence[Any]:
         return [
