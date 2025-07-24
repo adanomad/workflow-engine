@@ -2,6 +2,7 @@
 import datetime
 import json
 from collections.abc import Sequence
+from logging import getLogger
 from typing import Any, ClassVar, Self, Type
 
 from ..core import (
@@ -9,8 +10,10 @@ from ..core import (
     Caster,
     Context,
     File,
+    FileValue,
     FloatValue,
     IntegerValue,
+    JSONValue,
     NullValue,
     SequenceValue,
     StringMapValue,
@@ -19,6 +22,8 @@ from ..core import (
 )
 from ..core.value import get_origin_and_args
 from .text import TextFileValue
+
+logger = getLogger(__name__)
 
 
 # HACK: serialize datetime objects
@@ -44,7 +49,7 @@ class JSONFileValue(TextFileValue):
 
 
 @JSONFileValue.register_cast_to(NullValue)
-async def cast_json_to_null(value: JSONFileValue, context: "Context") -> NullValue:
+async def cast_json_file_to_null(value: JSONFileValue, context: "Context") -> NullValue:
     data = await value.read_data(context)
     if data is None:
         return NullValue(None)
@@ -52,7 +57,7 @@ async def cast_json_to_null(value: JSONFileValue, context: "Context") -> NullVal
 
 
 @JSONFileValue.register_cast_to(BooleanValue)
-async def cast_json_to_boolean(
+async def cast_json_file_to_boolean(
     value: JSONFileValue, context: "Context"
 ) -> BooleanValue:
     data = await value.read_data(context)
@@ -62,7 +67,7 @@ async def cast_json_to_boolean(
 
 
 @JSONFileValue.register_cast_to(IntegerValue)
-async def cast_json_to_integer(
+async def cast_json_file_to_integer(
     value: JSONFileValue, context: "Context"
 ) -> IntegerValue:
     data = await value.read_data(context)
@@ -72,7 +77,9 @@ async def cast_json_to_integer(
 
 
 @JSONFileValue.register_cast_to(FloatValue)
-async def cast_json_to_float(value: JSONFileValue, context: "Context") -> FloatValue:
+async def cast_json_file_to_float(
+    value: JSONFileValue, context: "Context"
+) -> FloatValue:
     data = await value.read_data(context)
     if isinstance(data, float):
         return FloatValue(data)
@@ -80,7 +87,9 @@ async def cast_json_to_float(value: JSONFileValue, context: "Context") -> FloatV
 
 
 @JSONFileValue.register_cast_to(StringValue)
-async def cast_json_to_string(value: JSONFileValue, context: "Context") -> StringValue:
+async def cast_json_file_to_string(
+    value: JSONFileValue, context: "Context"
+) -> StringValue:
     data = await value.read_data(context)
     if isinstance(data, str):
         return StringValue(data)
@@ -88,7 +97,7 @@ async def cast_json_to_string(value: JSONFileValue, context: "Context") -> Strin
 
 
 @JSONFileValue.register_generic_cast_to(SequenceValue)
-def cast_json_to_sequence(
+def cast_json_file_to_sequence(
     source_type: Type[JSONFileValue],
     target_type: Type[SequenceValue],
 ) -> Caster[JSONFileValue, SequenceValue]:
@@ -101,7 +110,7 @@ def cast_json_to_sequence(
 
 
 @JSONFileValue.register_generic_cast_to(StringMapValue)
-def cast_json_to_string_map(
+def cast_json_file_to_string_map(
     source_type: Type[JSONFileValue],
     target_type: Type[StringMapValue],
 ) -> Caster[JSONFileValue, StringMapValue]:
@@ -113,8 +122,21 @@ def cast_json_to_string_map(
     return _cast
 
 
+@JSONFileValue.register_cast_to(JSONValue)
+async def cast_json_file_to_json(value: JSONFileValue, context: "Context") -> JSONValue:
+    return JSONValue(await value.read_data(context))
+
+
 @Value.register_cast_to(JSONFileValue)
 async def cast_any_to_json_file(value: Value, context: "Context") -> JSONFileValue:
+    if isinstance(value, JSONFileValue):
+        return value
+    if isinstance(value, FileValue):
+        logger.warning(
+            f"Forcibly casting file {value.path} of MIME type {value.mime_type} and source type {type(value).__name__} "
+            f"(which might not necessarily be JSON compatible) to JSONFileValue. Ensure the source data is valid JSON."
+        )
+        return JSONFileValue(value.root)
     file = JSONFileValue(File(path=f"{value.md5}.json"))
     return await file.write_data(context=context, data=value.model_dump())
 
@@ -152,6 +174,7 @@ def cast_json_lines_to_sequence(
             BooleanValue,
             FloatValue,
             IntegerValue,
+            JSONValue,
             NullValue,
             SequenceValue,
             StringMapValue,

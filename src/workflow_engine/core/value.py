@@ -351,6 +351,13 @@ class StringMapValue(Value[Mapping[str, V]], Generic[V]):
         return key in self.root
 
 
+type JSON = Mapping[str, JSON] | Sequence[JSON] | None | bool | int | float | str
+
+
+class JSONValue(Value[JSON]):
+    pass
+
+
 @IntegerValue.register_cast_to(FloatValue)
 def cast_integer_to_float(value: IntegerValue, context: "Context") -> FloatValue:
     return FloatValue(float(value.root))
@@ -446,10 +453,17 @@ def cast_string_map_to_string_map(
     return _cast
 
 
+@Value.register_cast_to(JSONValue)
+def cast_any_to_json(value: Value, context: "Context") -> JSONValue:
+    return JSONValue(value.model_dump())
+
+
 __all__ = [
     "BooleanValue",
     "FloatValue",
     "IntegerValue",
+    "JSON",
+    "JSONValue",
     "NullValue",
     "SequenceValue",
     "StringMapValue",
