@@ -133,7 +133,8 @@ async def cast_any_to_json_file(value: Value, context: "Context") -> JSONFileVal
         return value
     if isinstance(value, FileValue):
         logger.warning(
-            f"Forcibly casting file {value.path} of MIME type {value.mime_type} (which might not necessarily be JSON compatible) to JSONFileValue"
+            f"Forcibly casting file {value.path} of MIME type {value.mime_type} and source type {type(value).__name__} "
+            f"(which might not necessarily be JSON compatible) to JSONFileValue. Ensure the source data is valid JSON."
         )
         return JSONFileValue(value.root)
     file = JSONFileValue(File(path=f"{value.md5}.json"))
