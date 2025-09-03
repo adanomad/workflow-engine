@@ -3,7 +3,7 @@
 Conditional nodes that run different workflows depending on a condition input.
 """
 
-from typing import Literal, Self, Type
+from typing import ClassVar, Literal, Self, Type
 
 from overrides import override
 from pydantic import ConfigDict
@@ -16,6 +16,7 @@ from ..core import (
     Data,
     Empty,
     Node,
+    NodeTypeInfo,
     Params,
     Workflow,
 )
@@ -32,7 +33,7 @@ class IfElseParams(Params):
 
 
 class ConditionalInput(Data):
-    model_config = ConfigDict(extra="allow")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
 
     condition: BooleanValue
 
@@ -47,6 +48,13 @@ class IfNode(Node[ConditionalInput, Empty, IfParams]):
     """
 
     # TODO: allow conditional nodes with optional output
+
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+        name="If",
+        display_name="If",
+        description="Executes the internal workflow if the boolean condition is true.",
+        version="0.4.0",
+    )
 
     type: Literal["If"] = "If"  # pyright: ignore[reportIncompatibleVariableOverride]
 
@@ -90,6 +98,12 @@ class IfElseNode(Node[ConditionalInput, Data, IfElseParams]):
 
     # TODO: allow union types
 
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+        name="IfElse",
+        display_name="IfElse",
+        description="Executes one of the two internal workflows based on the boolean condition.",
+        version="0.4.0",
+    )
     type: Literal["IfElse"] = "IfElse"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property

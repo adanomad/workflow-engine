@@ -4,9 +4,7 @@ from workflow_engine import File, InputEdge, OutputEdge, StringValue, Workflow
 from workflow_engine.contexts import InMemoryContext
 from workflow_engine.execution import TopologicalExecutionAlgorithm
 from workflow_engine.files import TextFileValue
-from workflow_engine.nodes import (
-    AppendToFileNode,
-)
+from workflow_engine.nodes import AppendToFileNode
 
 
 @pytest.fixture
@@ -35,7 +33,7 @@ def test_workflow_serialization(workflow: Workflow):
     """Test that the append workflow can be serialized and deserialized correctly."""
     workflow_json = workflow.model_dump_json(indent=2)
     with open("examples/append.json", "r") as f:
-        assert workflow_json == f.read()
+        assert workflow_json == f.read().strip()
 
     workflow_json = workflow.model_dump_json()
     deserialized_workflow = Workflow.model_validate_json(workflow_json)

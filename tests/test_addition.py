@@ -1,12 +1,6 @@
 import pytest
 
-from workflow_engine import (
-    Edge,
-    InputEdge,
-    IntegerValue,
-    OutputEdge,
-    Workflow,
-)
+from workflow_engine import Edge, InputEdge, IntegerValue, OutputEdge, Workflow
 from workflow_engine.contexts import InMemoryContext
 from workflow_engine.execution import TopologicalExecutionAlgorithm
 from workflow_engine.nodes import AddNode, ConstantIntegerNode
@@ -64,7 +58,7 @@ def test_workflow_serialization(workflow: Workflow):
     """Test that the workflow can be serialized and deserialized correctly."""
     workflow_json = workflow.model_dump_json(indent=2)
     with open("examples/addition.json", "r") as f:
-        assert workflow_json == f.read()
+        assert workflow_json == f.read().strip()
 
     workflow_json = workflow.model_dump_json()
     deserialized_workflow = Workflow.model_validate_json(workflow_json)

@@ -3,7 +3,7 @@
 Nodes that iterate over a sequence of items.
 """
 
-from typing import Literal, Self, Type
+from typing import ClassVar, Literal, Self, Type
 
 from overrides import override
 
@@ -13,6 +13,7 @@ from ..core import (
     Edge,
     InputEdge,
     Node,
+    NodeTypeInfo,
     OutputEdge,
     Params,
     Workflow,
@@ -44,6 +45,13 @@ class ForEachNode(Node[SequenceData, SequenceData, ForEachParams]):
     The output of this node is a sequence of the same length as the input
     sequence, with each item being the output of the internal workflow.
     """
+
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+        name="ForEach",
+        display_name="ForEach",
+        description="Executes the internal workflow for each item in the input sequence.",
+        version="0.4.0",
+    )
 
     type: Literal["ForEach"] = "ForEach"  # pyright: ignore[reportIncompatibleVariableOverride]
 

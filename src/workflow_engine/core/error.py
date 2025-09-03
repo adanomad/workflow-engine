@@ -3,7 +3,9 @@
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from workflow_engine.utils.immutable import ImmutableBaseModel
 
 if TYPE_CHECKING:
     from .workflow import Workflow
@@ -68,7 +70,7 @@ class NodeExpansionException(UserException):
             return base_message
 
 
-class WorkflowErrors(BaseModel):
+class WorkflowErrors(ImmutableBaseModel):
     """
     An error object that accumulates the errors that occurred during the
     execution of a workflow.
@@ -79,7 +81,6 @@ class WorkflowErrors(BaseModel):
     node_errors contains errors which can be associated with a node.
     """
 
-    model_config = ConfigDict(frozen=True)
     workflow_errors: list[str | None] = Field(default_factory=list)
     node_errors: dict[str, list[str | None]] = Field(
         default_factory=lambda: defaultdict(list)

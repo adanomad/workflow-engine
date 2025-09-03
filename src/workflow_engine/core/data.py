@@ -3,9 +3,11 @@ import asyncio
 import json
 import logging
 from collections.abc import Mapping
-from typing import TYPE_CHECKING, Any, Generic, Type, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Type, TypeVar
 
-from pydantic import BaseModel, ConfigDict, create_model
+from pydantic import ConfigDict, create_model
+
+from workflow_engine.utils.immutable import ImmutableBaseModel
 
 from .value import Caster, StringMapValue, Value, ValueType, get_origin_and_args
 
@@ -15,8 +17,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class Data(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
+class Data(ImmutableBaseModel):
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
 
     def __init_subclass__(cls, **kwargs):
         """Ensure all fields in subclasses are Value types."""

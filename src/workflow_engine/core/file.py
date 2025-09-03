@@ -4,7 +4,9 @@ from collections.abc import Mapping
 from logging import getLogger
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
+
+from workflow_engine.utils.immutable import ImmutableBaseModel
 
 from .value import Value
 
@@ -14,14 +16,14 @@ if TYPE_CHECKING:
 logger = getLogger(__name__)
 
 
-class File(BaseModel, ABC):
+class File(ImmutableBaseModel, ABC):
     """
     A serializable reference to a file.
 
     A Context provides the actual implementation to read the file's contents.
     """
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(frozen=True, extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
     metadata: Mapping[str, Any] = Field(default_factory=dict)
     path: str
 
