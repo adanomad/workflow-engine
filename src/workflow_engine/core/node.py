@@ -28,7 +28,11 @@ from pydantic import (
 )
 
 from workflow_engine.utils.immutable import ImmutableBaseModel
-from workflow_engine.utils.semver import parse_semver
+from workflow_engine.utils.semver import (
+    LATEST_SEMANTIC_VERSION,
+    parse_semantic_version,
+    SEMANTIC_VERSION_OR_LATEST_PATTERN,
+)
 
 from .data import (
     Data,
@@ -98,7 +102,7 @@ class NodeTypeInfo(BaseModel):
 
     @cached_property
     def version_tuple(self) -> tuple[int, int, int]:
-        return parse_semver(self.version)
+        return parse_semantic_version(self.version)
 
 
 class Node(ImmutableBaseModel, Generic[Input_contra, Output_co, Params_co]):
@@ -113,7 +117,9 @@ class Node(ImmutableBaseModel, Generic[Input_contra, Output_co, Params_co]):
     # Allow extra fields, such as position or appearance information.
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
 
-    # Must be annotated as ClassVar[NodeTypeInfo] when overriding
+    # Must be annotated as ClassVar[NodeTypeInfo] when overriding.
+    # Does not have a value here, since the base Node class is not meant to be
+    # instantiated except very temporarily in dispatches.
     TYPE_INFO: ClassVar[NodeTypeInfo]
 
     type: str = Field(
@@ -123,12 +129,13 @@ class Node(ImmutableBaseModel, Generic[Input_contra, Output_co, Params_co]):
         ),
     )
     version: str = Field(
+        pattern=SEMANTIC_VERSION_OR_LATEST_PATTERN,
         description=(
             "A 3-part version number for the node, following semantic versioning rules (see https://semver.org/). "
             "There is no guarantee that outdated versions will load successfully. "
             "If not provided, it will default to the current version of the node type."
         ),
-        default="",
+        default=LATEST_SEMANTIC_VERSION,
     )
     id: str = Field(
         description="The ID of the node, which must be unique within the workflow."
@@ -212,7 +219,7 @@ class Node(ImmutableBaseModel, Generic[Input_contra, Output_co, Params_co]):
         The major, minor, and patch version numbers of the node version.
         If the node version is not provided, this will crash.
         """
-        return parse_semver(self.version)
+        return parse_semantic_version(self.version)
 
     @model_validator(mode="after")
     def validate_version(self):
@@ -221,9 +228,8 @@ class Node(ImmutableBaseModel, Generic[Input_contra, Output_co, Params_co]):
         Validates the node version against the TYPE_INFO version.
         """
         type_info = self.__class__.TYPE_INFO
-        if self.version == "":
-            with self.unfreeze():
-                self.version = type_info.version
+        if self.version == LATEST_SEMANTIC_VERSION:
+            self._model_mutate(version=type_info.version)
         elif type_info.version_tuple < self.version_tuple:
             raise ValueError(
                 f"Node version {self.version} is newer than the latest version ({type_info.version}) supported by this workflow engine instance."
