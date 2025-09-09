@@ -19,7 +19,9 @@ from typing import (
     TypeVar,
 )
 
-from pydantic import ConfigDict, PrivateAttr, RootModel
+from pydantic import PrivateAttr
+
+from workflow_engine.utils.immutable import ImmutableRootModel
 
 if TYPE_CHECKING:
     from .context import Context
@@ -108,7 +110,7 @@ class GenericCaster(Protocol, Generic[SourceType, TargetType]):  # type: ignore
     ) -> Caster[SourceType, TargetType] | None: ...
 
 
-class Value(RootModel[T], Generic[T]):
+class Value(ImmutableRootModel[T], Generic[T]):
     """
     Wraps an arbitrary read-only value which can be passed as input to a node.
 
@@ -123,8 +125,6 @@ class Value(RootModel[T], Generic[T]):
     Once that cache is created, the casts are locked and can no longer be
     changed.
     """
-
-    model_config = ConfigDict(frozen=True)
 
     # these properties force us to implement __eq__ and __hash__ to ignore them
     _casters: ClassVar[dict[str, GenericCaster]] = {}

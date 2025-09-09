@@ -1,12 +1,13 @@
 # workflow_engine/nodes/text.py
 import os
-from typing import Literal, Self
+from typing import ClassVar, Literal, Self
 
 from ..core import (
     Context,
     Data,
     File,
     Node,
+    NodeTypeInfo,
     Params,
     StringValue,
 )
@@ -27,6 +28,13 @@ class AppendToFileParams(Params):
 
 
 class AppendToFileNode(Node[AppendToFileInput, AppendToFileOutput, AppendToFileParams]):
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+        name="AppendToFile",
+        display_name="AppendToFile",
+        description="Appends a string to the end of a file.",
+        version="0.4.0",
+    )
+
     type: Literal["AppendToFile"] = "AppendToFile"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property

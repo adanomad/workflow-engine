@@ -1,5 +1,5 @@
 # workflow_engine/nodes/constant.py
-from typing import Literal, Type
+from typing import ClassVar, Literal, Type
 
 from ..core import (
     BooleanValue,
@@ -8,6 +8,7 @@ from ..core import (
     Empty,
     IntegerValue,
     Node,
+    NodeTypeInfo,
     Params,
     StringValue,
 )
@@ -18,6 +19,13 @@ class ConstantBoolean(Params):
 
 
 class ConstantBooleanNode(Node[Empty, ConstantBoolean, ConstantBoolean]):
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+        name="ConstantBoolean",
+        display_name="ConstantBoolean",
+        description="A node that outputs a constant boolean value.",
+        version="0.4.0",
+    )
+
     type: Literal["ConstantBoolean"] = "ConstantBoolean"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
@@ -37,6 +45,13 @@ class ConstantInteger(Params):
 
 
 class ConstantIntegerNode(Node[Empty, ConstantInteger, ConstantInteger]):
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+        name="ConstantInteger",
+        display_name="ConstantInteger",
+        description="A node that outputs a constant integer value.",
+        version="0.4.0",
+    )
+
     type: Literal["ConstantInteger"] = "ConstantInteger"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
@@ -56,6 +71,13 @@ class ConstantString(Params):
 
 
 class ConstantStringNode(Node[Empty, ConstantString, ConstantString]):
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+        name="ConstantString",
+        display_name="ConstantString",
+        description="A node that outputs a constant string value.",
+        version="0.4.0",
+    )
+
     type: Literal["ConstantString"] = "ConstantString"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property

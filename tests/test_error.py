@@ -47,7 +47,7 @@ def test_workflow_serialization(workflow: Workflow):
     """Test that the error workflow can be serialized and deserialized correctly."""
     workflow_json = workflow.model_dump_json(indent=2)
     with open("examples/error.json", "r") as f:
-        assert workflow_json == f.read()
+        assert workflow_json == f.read().strip()
 
     deserialized_workflow = Workflow.model_validate_json(workflow_json)
     assert deserialized_workflow == workflow

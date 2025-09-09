@@ -2,25 +2,38 @@
 import asyncio
 import logging
 import re
+import warnings
 from collections.abc import Mapping
+from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Awaitable,
+    ClassVar,
     Generic,
+    Literal,
     Self,
     Type,
     TypeVar,
-    Union,
     Unpack,
-    _LiteralGenericAlias,  # type: ignore
+    get_origin,
 )
 
 from overrides import final
-from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    model_validator,
+)
 
-if TYPE_CHECKING:
-    from .context import Context
-    from .workflow import Workflow
+from workflow_engine.utils.immutable import ImmutableBaseModel
+from workflow_engine.utils.semver import (
+    LATEST_SEMANTIC_VERSION,
+    parse_semantic_version,
+    SEMANTIC_VERSION_OR_LATEST_PATTERN,
+)
+
 from .data import (
     Data,
     DataMapping,
@@ -31,11 +44,15 @@ from .data import (
 from .error import NodeException, UserException
 from .value import Value, ValueType
 
+if TYPE_CHECKING:
+    from .context import Context
+    from .workflow import Workflow
+
 logger = logging.getLogger(__name__)
 
 
 class Params(Data):
-    model_config = ConfigDict(
+    model_config: ClassVar[ConfigDict] = ConfigDict(
         extra="allow",
         frozen=True,
     )
@@ -65,37 +82,78 @@ class Empty(Params):
 generic_pattern = re.compile(r"^[a-zA-Z]\w+\[.*\]$")
 
 
-class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
-    model_config = ConfigDict(
-        extra="forbid",
-        frozen=True,
+class NodeTypeInfo(BaseModel):
+    """
+    Information about a node type, in serializable form.
+    """
+
+    name: str = Field(
+        description="The name of the node type, which should be a literal string for concrete subclasses."
+    )
+    display_name: str = Field(
+        description="A human-readable display name for the node, which may or may not be unique."
+    )
+    description: str = Field(
+        description="A human-readable description of the node type."
+    )
+    version: str = Field(
+        description="A 3-part version number for the node, following semantic versioning rules (see https://semver.org/)."
     )
 
-    type: str  # should be a literal string for concrete subclasses
-    id: str
-    # contains any extra fields for configuring the node
-    params: Params_co = Empty()  # type: ignore
+    @cached_property
+    def version_tuple(self) -> tuple[int, int, int]:
+        return parse_semantic_version(self.version)
 
-    @property
-    def input_type(self) -> Type[Input_contra]:  # type: ignore (contravariant return type)
-        # return Empty to spare users from having to specify the input type on
-        # nodes that don't have any input fields
-        return Empty  # type: ignore
 
-    @property
-    # @abstractmethod
-    def output_type(self) -> Type[Output_co]:
-        # return Empty to spare users from having to specify the output type on
-        # nodes that don't have any output fields
-        return Empty  # type: ignore
+class Node(ImmutableBaseModel, Generic[Input_contra, Output_co, Params_co]):
+    """
+    A data processing node in a workflow.
+    Nodes have three sets of fields:
+    - parameter fields must be provided when defining the workflow
+    - input fields are provided when executing the workflow
+    - output fields are produced by the node if it executes successfully
+    """
 
-    @property
-    def input_fields(self) -> Mapping[str, tuple[ValueType, bool]]:  # type: ignore
-        return get_data_fields(self.input_type)
+    # Allow extra fields, such as position or appearance information.
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
 
-    @property
-    def output_fields(self) -> Mapping[str, tuple[ValueType, bool]]:
-        return get_data_fields(self.output_type)
+    # Must be annotated as ClassVar[NodeTypeInfo] when overriding.
+    # Does not have a value here, since the base Node class is not meant to be
+    # instantiated except very temporarily in dispatches.
+    TYPE_INFO: ClassVar[NodeTypeInfo]
+
+    type: str = Field(
+        description=(
+            "The type of the node, which should be a literal string for discriminating concrete subclasses. "
+            "Used to determine which node class to load."
+        ),
+    )
+    version: str = Field(
+        pattern=SEMANTIC_VERSION_OR_LATEST_PATTERN,
+        description=(
+            "A 3-part version number for the node, following semantic versioning rules (see https://semver.org/). "
+            "There is no guarantee that outdated versions will load successfully. "
+            "If not provided, it will default to the current version of the node type."
+        ),
+        default=LATEST_SEMANTIC_VERSION,
+    )
+    id: str = Field(
+        description="The ID of the node, which must be unique within the workflow."
+    )
+    params: Params_co = Field(
+        default_factory=Empty,  # type: ignore
+        description=(
+            "Any parameters for the node which are independent of the workflow inputs. "
+            "May affect what inputs are accepted by the node."
+        ),
+    )
+
+    # --------------------------------------------------------------------------
+    # SUBCLASS DISPATCH
+    # We use this trick to allow Node.model_validate to deserialize nodes as
+    # their registered subclasses, using the type field as a discriminator to
+    # select the appropriate subclass.
+    # Node subclasses are registered automatically when they are defined.
 
     def __init_subclass__(cls, **kwargs: Unpack[ConfigDict]):
         super().__init_subclass__(**kwargs)  # type: ignore
@@ -105,17 +163,12 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
         while generic_pattern.match(cls.__name__) is not None:
             assert cls.__base__ is not None
             cls = cls.__base__
-        name = cls.__name__
-        assert name.endswith("Node"), name
         type_annotation = cls.__annotations__.get("type", None)
-        if type_annotation is None or not isinstance(
-            type_annotation, _LiteralGenericAlias
-        ):
+        if type_annotation is None or get_origin(type_annotation) is not Literal:
             _registry.register_base(cls)
         else:
             (type_name,) = type_annotation.__args__
             assert isinstance(type_name, str), type_name
-            assert type_name == name.removesuffix("Node")
             _registry.register(type_name, cls)
 
     @model_validator(mode="after")  # type: ignore
@@ -131,6 +184,88 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
                 raise ValueError(f'Node type "{self.type}" is not registered')
             return cls.model_validate(self.model_dump())
         return self
+
+    # --------------------------------------------------------------------------
+    # NAMING
+
+    @property
+    def name(self) -> str:
+        """
+        A human-readable display name for the node, which may or may not be
+        unique.
+        By default, it is the node type joined with the node ID.
+        Override this method to provide a more meaningful name.
+        """
+        return f"{self.TYPE_INFO.name} {self.id}"
+
+    def with_namespace(self, namespace: str) -> Self:
+        """
+        Create a copy of this node with a namespaced ID.
+
+        Args:
+            namespace: The namespace to prefix the node ID with
+
+        Returns:
+            A new Node with ID '{namespace}/{self.id}'
+        """
+        return self.model_update(id=f"{namespace}/{self.id}")
+
+    # --------------------------------------------------------------------------
+    # VERSIONING
+
+    @property
+    def version_tuple(self) -> tuple[int, int, int]:
+        """
+        The major, minor, and patch version numbers of the node version.
+        If the node version is not provided, this will crash.
+        """
+        return parse_semantic_version(self.version)
+
+    @model_validator(mode="after")
+    def validate_version(self):
+        """
+        Sets the node version to the current version of the node type.
+        Validates the node version against the TYPE_INFO version.
+        """
+        type_info = self.__class__.TYPE_INFO
+        if self.version == LATEST_SEMANTIC_VERSION:
+            self._model_mutate(version=type_info.version)
+        elif type_info.version_tuple < self.version_tuple:
+            raise ValueError(
+                f"Node version {self.version} is newer than the latest version ({type_info.version}) supported by this workflow engine instance."
+            )
+        elif type_info.version_tuple > self.version_tuple:
+            warnings.warn(
+                f"Node version {self.version} is older than the latest version ({type_info.version}) supported by this workflow engine instance, and may need to be migrated."
+            )
+            # TODO: a migration system
+        return self
+
+    # --------------------------------------------------------------------------
+    # TYPING
+
+    @property
+    def input_type(self) -> Type[Input_contra]:  # type: ignore (contravariant return type)
+        # return Empty to spare users from having to specify the input type on
+        # nodes that don't have any input fields
+        return Empty  # type: ignore
+
+    @property
+    def output_type(self) -> Type[Output_co]:
+        # return Empty to spare users from having to specify the output type on
+        # nodes that don't have any output fields
+        return Empty  # type: ignore
+
+    @property
+    def input_fields(self) -> Mapping[str, tuple[ValueType, bool]]:  # type: ignore
+        return get_data_fields(self.input_type)
+
+    @property
+    def output_fields(self) -> Mapping[str, tuple[ValueType, bool]]:
+        return get_data_fields(self.output_type)
+
+    # --------------------------------------------------------------------------
+    # EXECUTION
 
     async def _cast_input(
         self,
@@ -175,14 +310,28 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
                 f"Input {casted_input} for node {self.id} is invalid: {e}"
             )
 
+    # @abstractmethod
+    async def run(
+        self,
+        context: "Context",
+        input: Input_contra,
+    ) -> "Output_co | Workflow":
+        """
+        Computes the node's outputs based on its inputs.
+        Subclasses must implement this method, but it is not marked as abstract
+        because the base Node class needs to be instantiable for dispatching.
+        """
+        raise NotImplementedError("Subclasses must implement this method")
+
     @final
     async def __call__(
         self,
         context: "Context",
         input: DataMapping,
-    ) -> Union[
-        DataMapping, "Workflow"
-    ]:  # Using Union instead of | due to Python 3.12 TypeAlias bug
+    ) -> "DataMapping | Workflow":
+        """
+        Executes the node.
+        """
         try:
             logger.info("Starting node %s", self.id)
             output = await context.on_node_start(node=self, input=input)
@@ -223,27 +372,6 @@ class Node(BaseModel, Generic[Input_contra, Output_co, Params_co]):
                 assert isinstance(e, Exception)
                 raise NodeException(self.id) from e
 
-    # @abstractmethod
-    # Using Union instead of | due to Python 3.12 TypeAlias bug
-    async def run(
-        self,
-        context: "Context",
-        input: Input_contra,
-    ) -> Union[Output_co, "Workflow"]:
-        raise NotImplementedError("Subclasses must implement this method")
-
-    def with_namespace(self, namespace: str) -> Self:
-        """
-        Create a copy of this node with a namespaced ID.
-
-        Args:
-            namespace: The namespace to prefix the node ID with
-
-        Returns:
-            A new Node with ID '{namespace}/{self.id}'
-        """
-        return self.model_copy(update={"id": f"{namespace}/{self.id}"})
-
 
 class NodeRegistry:
     def __init__(self):
@@ -276,6 +404,8 @@ _registry = NodeRegistry()
 
 
 __all__ = [
+    "Empty",
     "Node",
+    "NodeTypeInfo",
     "Params",
 ]

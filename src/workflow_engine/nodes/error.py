@@ -1,12 +1,13 @@
 # workflow_engine/nodes/error.py
 
-from typing import Literal
+from typing import ClassVar, Literal
 
 from ..core import (
     Context,
     Data,
     Empty,
     Node,
+    NodeTypeInfo,
     Params,
     StringValue,
     UserException,
@@ -25,6 +26,13 @@ class ErrorNode(Node[ErrorInput, Empty, ErrorParams]):
     """
     A node that always raises an error.
     """
+
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+        name="Error",
+        display_name="Error",
+        description="A node that always raises an error.",
+        version="0.4.0",
+    )
 
     type: Literal["Error"] = "Error"  # pyright: ignore[reportIncompatibleVariableOverride]
 

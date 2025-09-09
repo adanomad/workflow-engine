@@ -3,7 +3,7 @@
 Simple nodes for testing the workflow engine, with limited usefulness otherwise.
 """
 
-from typing import Literal
+from typing import ClassVar, Literal
 
 from ..core import (
     Context,
@@ -12,6 +12,7 @@ from ..core import (
     FloatValue,
     IntegerValue,
     Node,
+    NodeTypeInfo,
     Params,
     SequenceValue,
 )
@@ -27,6 +28,13 @@ class SumOutput(Data):
 
 
 class AddNode(Node[AddNodeInput, SumOutput, Empty]):
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+        name="Add",
+        display_name="Add",
+        description="Adds two numbers.",
+        version="0.4.0",
+    )
+
     type: Literal["Add"] = "Add"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
@@ -50,6 +58,13 @@ class SumNodeOutput(Data):
 
 
 class SumNode(Node[SumNodeInput, SumNodeOutput, Empty]):
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+        name="Sum",
+        display_name="Sum",
+        description="Sums a sequence of numbers.",
+        version="0.4.0",
+    )
+
     type: Literal["Sum"] = "Sum"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
@@ -73,6 +88,13 @@ class FactorizationData(Data):
 
 
 class FactorizationNode(Node[IntegerData, FactorizationData, Params]):
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+        name="Factorization",
+        display_name="Factorization",
+        description="Factorizes an integer into a sequence of its factors.",
+        version="0.4.0",
+    )
+
     type: Literal["Factorization"] = "Factorization"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property

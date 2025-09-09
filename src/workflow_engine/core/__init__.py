@@ -5,7 +5,7 @@ from .edge import Edge, InputEdge, OutputEdge
 from .error import NodeException, UserException, WorkflowErrors
 from .execution import ExecutionAlgorithm
 from .file import File, FileValue
-from .node import Empty, Node, Params
+from .node import Empty, Node, NodeTypeInfo, Params
 from .value import (
     BooleanValue,
     Caster,
@@ -41,6 +41,7 @@ __all__ = [
     "JSONValue",
     "Node",
     "NodeException",
+    "NodeTypeInfo",
     "NullValue",
     "OutputEdge",
     "Params",

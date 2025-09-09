@@ -2,6 +2,7 @@
   "nodes": [
     {
       "type": "ConstantString",
+      "version": "0.4.0",
       "id": "constant",
       "params": {
         "value": "test"
@@ -9,6 +10,7 @@
     },
     {
       "type": "Error",
+      "version": "0.4.0",
       "id": "error",
       "params": {
         "error_name": "RuntimeError"

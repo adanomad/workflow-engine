@@ -2,6 +2,7 @@
   "nodes": [
     {
       "type": "ConstantInteger",
+      "version": "0.4.0",
       "id": "a",
       "params": {
         "value": 42
@@ -9,6 +10,7 @@
     },
     {
       "type": "ConstantInteger",
+      "version": "0.4.0",
       "id": "b",
       "params": {
         "value": 2025
@@ -16,11 +18,13 @@
     },
     {
       "type": "Add",
+      "version": "0.4.0",
       "id": "a+b",
       "params": {}
     },
     {
       "type": "Add",
+      "version": "0.4.0",
       "id": "a+b+c",
       "params": {}
     }

@@ -1,17 +1,15 @@
 # workflow_engine/core/edge.py
 
-from pydantic import BaseModel, ConfigDict
+from workflow_engine.utils.immutable import ImmutableBaseModel
 
 from .node import Node
 from .value import Value, ValueType
 
 
-class Edge(BaseModel):
+class Edge(ImmutableBaseModel):
     """
     An edge connects the output of source node to the input of a target node.
     """
-
-    model_config = ConfigDict(frozen=True)
 
     source_id: str
     source_key: str
@@ -61,25 +59,21 @@ class Edge(BaseModel):
             )
 
 
-class SynchronizationEdge(BaseModel):
+class SynchronizationEdge(ImmutableBaseModel):
     """
     An edge that carries no information, but indicates that the target node must
     run after the source node finishes.
     """
 
-    model_config = ConfigDict(frozen=True)
-
     source_id: str
     target_id: str
 
 
-class InputEdge(BaseModel):
+class InputEdge(ImmutableBaseModel):
     """
     An "edge" that maps a field from the workflow's input to the input of a
     target node.
     """
-
-    model_config = ConfigDict(frozen=True)
 
     input_key: str
     target_id: str
@@ -114,13 +108,11 @@ class InputEdge(BaseModel):
             )
 
 
-class OutputEdge(BaseModel):
+class OutputEdge(ImmutableBaseModel):
     """
     An "edge" that maps a source node's output to a special output of the
     workflow.
     """
-
-    model_config = ConfigDict(frozen=True)
 
     source_id: str
     source_key: str
