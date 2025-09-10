@@ -71,11 +71,10 @@ def cast_string_map_to_string_map(
     ) -> target_type:  # pyright: ignore[reportInvalidTypeForm]
         assert isinstance(value, StringMapValue)
         # Cast all values in parallel
-        items: list[tuple[str, Value]] = list(value.items())
-        keys = [k for k, _v in items]
+        keys, values = zip(*value.items())
         cast_tasks = [
             v.cast_to(target_value_type, context=context)  # type: ignore
-            for _k, v in items
+            for v in values
         ]
         casted_values = await asyncio.gather(*cast_tasks)
         return target_type(dict(zip(keys, casted_values)))  # type: ignore

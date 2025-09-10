@@ -80,4 +80,5 @@ __all__ = [
     "FloatValue",
     "IntegerValue",
     "NullValue",
+    "StringValue",
 ]
