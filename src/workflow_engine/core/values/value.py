@@ -1,15 +1,11 @@
-# workflow_engine/core/value.py
-from __future__ import annotations
-
-import asyncio
+# workflow_engine/core/values/value.py
 import inspect
-from collections.abc import ItemsView, Iterator, KeysView, Mapping, Sequence, ValuesView
+import re
 from functools import cached_property
 from hashlib import md5
 from logging import getLogger
 from typing import (
     TYPE_CHECKING,
-    Any,
     Awaitable,
     ClassVar,
     Generic,
@@ -17,14 +13,16 @@ from typing import (
     Self,
     Type,
     TypeVar,
+    get_origin,
 )
 
 from pydantic import PrivateAttr
 
-from workflow_engine.utils.immutable import ImmutableRootModel
+from ...utils.immutable import ImmutableRootModel
 
 if TYPE_CHECKING:
-    from .context import Context
+    from ..context import Context
+    from .schema import ValueSchema
 
 
 logger = getLogger(__name__)
@@ -110,6 +108,9 @@ class GenericCaster(Protocol, Generic[SourceType, TargetType]):  # type: ignore
     ) -> Caster[SourceType, TargetType] | None: ...
 
 
+generic_pattern = re.compile(r"^[a-zA-Z]\w+\[.*\]$")
+
+
 class Value(ImmutableRootModel[T], Generic[T]):
     """
     Wraps an arbitrary read-only value which can be passed as input to a node.
@@ -139,6 +140,14 @@ class Value(ImmutableRootModel[T], Generic[T]):
         # reinitialize for each subclass so it doesn't just reference the parent
         cls._casters = {}
         cls._resolved_casters = None
+
+        # NOTE: something about this hack does not work when using
+        # `from __future__ import annotations`.
+        while generic_pattern.match(cls.__name__) is not None:
+            assert cls.__base__ is not None
+            cls = cls.__base__
+        if get_origin(cls) is None:
+            value_type_registry.register(cls.__name__, cls)
 
     @classmethod
     def _get_casters(cls) -> dict[str, GenericCaster]:
@@ -268,205 +277,44 @@ class Value(ImmutableRootModel[T], Generic[T]):
     async def cast_from(cls, v: "Value", *, context: "Context") -> Self:
         return await v.cast_to(cls, context=context)
 
+    @classmethod
+    def to_value_schema(cls) -> "ValueSchema":
+        from .schema import validate_value_schema  # avoid circular import
 
-################################################################################
-# JSON types
-
-
-class NullValue(Value[None]):
-    pass
+        return validate_value_schema(cls.model_json_schema())
 
 
-class BooleanValue(Value[bool]):
-    pass
+class ValueRegistry:
+    def __init__(self):
+        self.types: dict[str, ValueType] = {}
+
+    def register(self, name: str, cls: ValueType):
+        if name in self.types:
+            conflict = self.types[name]
+            if cls is not conflict:
+                raise ValueError(
+                    f'Value type "{type}" (class {cls.__name__}) is already registered to a different class ({conflict.__name__})'
+                )
+        self.types[name] = cls
+        logger.info("Registering class %s as value type %s", cls.__name__, type)
+
+    def __contains__(self, name: str) -> bool:
+        return name in self.types
+
+    def __getitem__(self, name: str) -> ValueType:
+        if name not in self.types:
+            raise ValueError(f'Value type "{name}" is not registered')
+        return self.types[name]
 
 
-class IntegerValue(Value[int]):
-    pass
-
-
-class FloatValue(Value[float]):
-    pass
-
-
-class StringValue(Value[str]):
-    def __len__(self) -> int:
-        return len(self.root)
-
-    def __contains__(self, substring: str | StringValue) -> bool:
-        if isinstance(substring, StringValue):
-            substring = substring.root
-        return substring in self.root
-
-
-class SequenceValue(Value[Sequence[V]], Generic[V]):
-    def __getitem__(self, index: int | IntegerValue) -> V:
-        if isinstance(index, IntegerValue):
-            index = index.root
-        return self.root[index]
-
-    def __len__(self) -> int:
-        return len(self.root)
-
-    def __iter__(self) -> Iterator[V]:  # pyright: ignore[reportIncompatibleMethodOverride]
-        # NOTE: This convenience method breaks Pydantic's dict(value) behaviour,
-        # for better or worse. We will revert if this actually causes problems.
-        yield from self.root
-
-    def __contains__(self, item: Any) -> bool:
-        return any(x == item for x in self.root)
-
-
-class StringMapValue(Value[Mapping[str, V]], Generic[V]):
-    def __getitem__(self, key: str | StringValue) -> V:
-        if isinstance(key, StringValue):
-            key = key.root
-        return self.root[key]
-
-    def get(self, key: str | StringValue, default: V | None = None) -> V | None:
-        if isinstance(key, StringValue):
-            key = key.root
-        return self.root.get(key, default)
-
-    def __len__(self) -> int:
-        return len(self.root)
-
-    def __iter__(self) -> Iterator[str]:  # pyright: ignore[reportIncompatibleMethodOverride]
-        # NOTE: This convenience method breaks Pydantic's dict(value) behaviour,
-        # for better or worse. We will revert if this actually causes problems.
-        yield from self.root
-
-    def items(self) -> ItemsView[str, V]:
-        return self.root.items()
-
-    def keys(self) -> KeysView[str]:
-        return self.root.keys()
-
-    def values(self) -> ValuesView[V]:
-        return self.root.values()
-
-    def __contains__(self, key: str | StringValue) -> bool:
-        if isinstance(key, StringValue):
-            key = key.root
-        return key in self.root
-
-
-type JSON = Mapping[str, JSON] | Sequence[JSON] | None | bool | int | float | str
-
-
-class JSONValue(Value[JSON]):
-    pass
-
-
-@IntegerValue.register_cast_to(FloatValue)
-def cast_integer_to_float(value: IntegerValue, context: "Context") -> FloatValue:
-    return FloatValue(float(value.root))
-
-
-@FloatValue.register_cast_to(IntegerValue)
-def cast_float_to_integer(value: FloatValue, context: "Context") -> IntegerValue:
-    """
-    Convert a float to an integer only if the float is already an integer.
-    Otherwise, raise a ValueError.
-    """
-    if value.root.is_integer():
-        return IntegerValue(int(value.root))
-    else:
-        raise ValueError(f"Cannot convert {value} to {IntegerValue}")
-
-
-@Value.register_cast_to(StringValue)
-def cast_value_to_string(value: Value, context: "Context") -> StringValue:
-    return StringValue(str(value.root))
-
-
-@StringValue.register_cast_to(BooleanValue)
-def cast_string_to_boolean(value: StringValue, context: "Context") -> BooleanValue:
-    return BooleanValue.model_validate_json(value.root)
-
-
-@StringValue.register_cast_to(IntegerValue)
-def cast_string_to_integer(value: StringValue, context: "Context") -> IntegerValue:
-    return IntegerValue.model_validate_json(value.root)
-
-
-@StringValue.register_cast_to(FloatValue)
-def cast_string_to_float(value: StringValue, context: "Context") -> FloatValue:
-    return FloatValue.model_validate_json(value.root)
-
-
-@SequenceValue.register_generic_cast_to(SequenceValue)
-def cast_sequence_to_sequence(
-    source_type: Type[SequenceValue[SourceType]],
-    target_type: Type[SequenceValue[TargetType]],
-) -> Caster[SequenceValue[SourceType], SequenceValue[TargetType]] | None:
-    source_origin, (source_item_type,) = get_origin_and_args(source_type)
-    target_origin, (target_item_type,) = get_origin_and_args(target_type)
-
-    assert source_origin is SequenceValue
-    assert target_origin is SequenceValue
-    if not source_item_type.can_cast_to(target_item_type):
-        return None
-
-    async def _cast(
-        value: source_type,  # pyright: ignore[reportInvalidTypeForm]
-        context: "Context",
-    ) -> target_type:  # pyright: ignore[reportInvalidTypeForm]
-        # Cast all items in parallel
-        cast_tasks = [
-            x.cast_to(target_item_type, context=context)  # type: ignore
-            for x in value.root
-        ]
-        casted_items = await asyncio.gather(*cast_tasks)
-        return target_type(casted_items)  # type: ignore
-
-    return _cast
-
-
-@StringMapValue.register_generic_cast_to(StringMapValue)
-def cast_string_map_to_string_map(
-    source_type: Type[StringMapValue[SourceType]],
-    target_type: Type[StringMapValue[TargetType]],
-) -> Caster[StringMapValue[SourceType], StringMapValue[TargetType]] | None:
-    source_origin, (source_value_type,) = get_origin_and_args(source_type)
-    target_origin, (target_value_type,) = get_origin_and_args(target_type)
-
-    assert source_origin is StringMapValue
-    assert target_origin is StringMapValue
-    if not source_value_type.can_cast_to(target_value_type):
-        return None
-
-    async def _cast(
-        value: source_type,  # pyright: ignore[reportInvalidTypeForm]
-        context: "Context",
-    ) -> target_type:  # pyright: ignore[reportInvalidTypeForm]
-        # Cast all values in parallel
-        items = list(value.items())
-        keys = [k for k, v in items]
-        cast_tasks = [
-            v.cast_to(target_value_type, context=context)  # type: ignore
-            for k, v in items
-        ]
-        casted_values = await asyncio.gather(*cast_tasks)
-        return target_type(dict(zip(keys, casted_values)))  # type: ignore
-
-    return _cast
-
-
-@Value.register_cast_to(JSONValue)
-def cast_any_to_json(value: Value, context: "Context") -> JSONValue:
-    return JSONValue(value.model_dump())
+value_type_registry = ValueRegistry()
 
 
 __all__ = [
-    "BooleanValue",
-    "FloatValue",
-    "IntegerValue",
-    "JSON",
-    "JSONValue",
-    "NullValue",
-    "SequenceValue",
-    "StringMapValue",
-    "StringValue",
+    "Caster",
+    "GenericCaster",
+    "get_origin_and_args",
     "Value",
+    "ValueType",
+    "value_type_registry",
 ]

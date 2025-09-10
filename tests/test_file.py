@@ -10,7 +10,7 @@ from workflow_engine import (
     StringMapValue,
 )
 from workflow_engine.contexts.in_memory import InMemoryContext
-from workflow_engine.files.json import JSONFileValue, JSONLinesFileValue
+from workflow_engine.files import JSONFileValue, JSONLinesFileValue
 
 
 @pytest.fixture

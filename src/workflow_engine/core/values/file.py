@@ -1,4 +1,4 @@
-# workflow_engine/core/file.py
+# workflow_engine/core/values/file.py
 from abc import ABC
 from collections.abc import Mapping
 from logging import getLogger
@@ -6,12 +6,11 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from pydantic import ConfigDict, Field
 
-from workflow_engine.utils.immutable import ImmutableBaseModel
-
+from ...utils.immutable import ImmutableBaseModel
 from .value import Value
 
 if TYPE_CHECKING:
-    from .context import Context
+    from ..context import Context
 
 logger = getLogger(__name__)
 

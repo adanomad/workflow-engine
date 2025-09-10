@@ -7,11 +7,10 @@ from typing import Type
 import networkx as nx
 from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
-from .data import Data, DataMapping, build_data_type
 from .edge import Edge, InputEdge, OutputEdge
 from .error import NodeExpansionException, UserException
 from .node import Node
-from .value import ValueType
+from .values import Data, DataMapping, ValueType, build_data_type
 
 
 class Workflow(BaseModel):

@@ -5,10 +5,9 @@ from typing import TypeVar
 
 from overrides import EnforceOverrides
 
-from .data import DataMapping
 from .error import WorkflowErrors
-from .file import FileValue
 from .node import Node
+from .values import DataMapping, FileValue
 from .workflow import Workflow
 
 F = TypeVar("F", bound=FileValue)

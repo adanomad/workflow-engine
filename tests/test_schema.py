@@ -1,0 +1,375 @@
+# tests/test_schema.py
+
+"""
+Tests two sets of functionalities:
+1. that .to_value_cls() is the inverse of .to_value_schema()
+2. that we can manually write JSON Schemas that will turn into the correct Value
+   classes when .to_value_cls() is called on them.
+"""
+
+import pytest
+
+from workflow_engine import (
+    BooleanValue,
+    Data,
+    DataValue,
+    FileValue,
+    FloatValue,
+    IntegerValue,
+    NullValue,
+    SequenceValue,
+    StringMapValue,
+    StringValue,
+)
+from workflow_engine.files import (
+    TextFileValue,
+    JSONFileValue,
+    JSONLinesFileValue,
+    PDFFileValue,
+)
+from workflow_engine.core.values import validate_value_schema
+
+
+@pytest.mark.unit
+def test_boolean_schema_roundtrip():
+    cls = BooleanValue
+    schema = cls.to_value_schema()
+    reconstructed_cls = schema.to_value_cls()
+    assert reconstructed_cls == BooleanValue
+    assert reconstructed_cls.to_value_schema() == schema
+
+    original_instance = cls(True)
+    reconstructed_instance = reconstructed_cls.model_validate(
+        original_instance.model_dump()
+    )
+    assert reconstructed_instance == original_instance
+
+
+@pytest.mark.unit
+def test_boolean_schema_manual():
+    json_schema = {
+        "title": "BooleanValue",
+    }
+    schema = validate_value_schema(json_schema)
+    assert schema.to_value_cls() == BooleanValue
+
+    original_instance = BooleanValue(False)
+    reconstructed_instance = schema.to_value_cls().model_validate(
+        original_instance.model_dump()
+    )
+    assert reconstructed_instance == original_instance
+
+
+@pytest.mark.unit
+def test_integer_schema_roundtrip():
+    cls = IntegerValue
+    schema = cls.to_value_schema()
+    reconstructed_cls = schema.to_value_cls()
+    assert reconstructed_cls == IntegerValue
+    assert reconstructed_cls.to_value_schema() == schema
+
+    original_instance = cls(42)
+    reconstructed_instance = reconstructed_cls.model_validate(
+        original_instance.model_dump()
+    )
+    assert reconstructed_instance == original_instance
+
+
+@pytest.mark.unit
+def test_integer_schema_manual():
+    json_schema = {
+        "title": "IntegerValue",
+    }
+    schema = validate_value_schema(json_schema)
+    assert schema.to_value_cls() == IntegerValue
+
+    original_instance = IntegerValue(-42)
+    reconstructed_instance = schema.to_value_cls().model_validate(
+        original_instance.model_dump()
+    )
+    assert reconstructed_instance == original_instance
+
+
+@pytest.mark.unit
+def test_float_schema_roundtrip():
+    cls = FloatValue
+    schema = cls.to_value_schema()
+    reconstructed_cls = schema.to_value_cls()
+    assert reconstructed_cls == FloatValue
+    assert reconstructed_cls.to_value_schema() == schema
+
+    original_instance = cls(3.14159)
+    reconstructed_instance = reconstructed_cls.model_validate(
+        original_instance.model_dump()
+    )
+    assert reconstructed_instance == original_instance
+
+
+@pytest.mark.unit
+def test_float_schema_manual():
+    json_schema = {
+        "title": "FloatValue",
+    }
+    schema = validate_value_schema(json_schema)
+    assert schema.to_value_cls() == FloatValue
+
+    original_instance = FloatValue(2.71828)
+    reconstructed_instance = schema.to_value_cls().model_validate(
+        original_instance.model_dump()
+    )
+    assert reconstructed_instance == original_instance
+
+
+@pytest.mark.unit
+def test_null_schema_roundtrip():
+    cls = NullValue
+    schema = cls.to_value_schema()
+    reconstructed_cls = schema.to_value_cls()
+    assert reconstructed_cls == NullValue
+    assert reconstructed_cls.to_value_schema() == schema
+
+    original_instance = cls(None)
+    reconstructed_instance = reconstructed_cls.model_validate(
+        original_instance.model_dump()
+    )
+    assert reconstructed_instance == original_instance
+
+
+@pytest.mark.unit
+def test_null_schema_manual():
+    json_schema = {
+        "title": "NullValue",
+    }
+    schema = validate_value_schema(json_schema)
+    assert schema.to_value_cls() == NullValue
+
+    original_instance = NullValue(None)
+    reconstructed_instance = schema.to_value_cls().model_validate(
+        original_instance.model_dump()
+    )
+    assert reconstructed_instance == original_instance
+
+
+@pytest.mark.unit
+def test_string_schema_roundtrip():
+    cls = StringValue
+    schema = cls.to_value_schema()
+    reconstructed_cls = schema.to_value_cls()
+    assert reconstructed_cls == StringValue
+    assert reconstructed_cls.to_value_schema() == schema
+
+    original_instance = cls("hello wengine")
+    reconstructed_instance = reconstructed_cls.model_validate(
+        original_instance.model_dump()
+    )
+    assert reconstructed_instance == original_instance
+
+
+@pytest.mark.unit
+def test_string_schema_manual():
+    json_schema = {
+        "title": "StringValue",
+    }
+    schema = validate_value_schema(json_schema)
+    assert schema.to_value_cls() == StringValue
+
+    original_instance = StringValue("goodbye wengine")
+    reconstructed_instance = schema.to_value_cls().model_validate(
+        original_instance.model_dump()
+    )
+    assert reconstructed_instance == original_instance
+
+
+@pytest.mark.unit
+def test_sequence_schema_roundtrip():
+    for T in (
+        BooleanValue,
+        FloatValue,
+        IntegerValue,
+        NullValue,
+        StringValue,
+    ):
+        cls = SequenceValue[T]
+        schema = cls.to_value_schema()
+        assert schema.to_value_cls() == SequenceValue[T]
+
+
+@pytest.mark.unit
+def test_sequence_schema_manual():
+    for name, T in (
+        ("BooleanValue", BooleanValue),
+        ("FloatValue", FloatValue),
+        ("IntegerValue", IntegerValue),
+        ("NullValue", NullValue),
+        ("StringValue", StringValue),
+    ):
+        json_schema = {
+            "type": "array",
+            "items": {"title": name},
+        }
+        schema = validate_value_schema(json_schema)
+        assert schema.to_value_cls() == SequenceValue[T]
+
+
+@pytest.mark.unit
+def test_string_map_schema_roundtrip():
+    for T in (
+        BooleanValue,
+        FloatValue,
+        IntegerValue,
+        NullValue,
+        StringValue,
+    ):
+        cls = StringMapValue[T]
+        schema = cls.to_value_schema()
+        assert schema.to_value_cls() == cls
+
+
+@pytest.mark.unit
+def test_string_map_schema_manual():
+    for name, T in (
+        ("BooleanValue", BooleanValue),
+        ("FloatValue", FloatValue),
+        ("IntegerValue", IntegerValue),
+        ("NullValue", NullValue),
+        ("StringValue", StringValue),
+    ):
+        json_schema = {
+            "type": "object",
+            "additionalProperties": {"title": name},
+        }
+        schema = validate_value_schema(json_schema)
+        assert schema.to_value_cls() == StringMapValue[T]
+
+
+@pytest.mark.unit
+def test_super_recursive_schema_roundtrip():
+    for cls in (
+        StringMapValue[SequenceValue[StringMapValue[StringValue]]],
+        SequenceValue[StringMapValue[SequenceValue[NullValue]]],
+        StringMapValue[StringMapValue[StringMapValue[IntegerValue]]],
+        SequenceValue[SequenceValue[SequenceValue[BooleanValue]]],
+    ):
+        schema = cls.to_value_schema()
+        assert schema.to_value_cls() == cls
+
+
+@pytest.mark.unit
+def test_super_recursive_schema_manual():
+    json_schema = {
+        "type": "object",
+        "additionalProperties": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": {"title": "StringValue"},
+            },
+        },
+    }
+    schema = validate_value_schema(json_schema)
+    assert (
+        schema.to_value_cls()
+        == StringMapValue[SequenceValue[StringMapValue[StringValue]]]
+    )
+
+
+# defined outside of test_data_schema_roundtrip to get a proper class name
+class NestedData(Data):
+    foo: StringValue
+    bar: IntegerValue
+
+
+@pytest.mark.unit
+def test_data_schema_roundtrip():
+    cls = DataValue[NestedData]
+    schema = cls.to_value_schema()
+    reconstructed_cls = schema.to_value_cls()
+
+    # for Data, to_value_cls returns a new class not equal to the original...
+    assert reconstructed_cls != cls
+    # ... but it is logically equivalent, i.e. it has the same value_schema
+    assert reconstructed_cls.to_value_schema() == schema
+    # and it can serialize and deserialize instances of the original class
+
+    original_instance = cls(
+        NestedData(
+            foo=StringValue("foo"),
+            bar=IntegerValue(1),
+        ),
+    )
+    reconstructed_instance = reconstructed_cls.model_validate(
+        original_instance.model_dump()
+    )
+    assert reconstructed_instance.root.foo == original_instance.root.foo
+    assert reconstructed_instance.root.bar == original_instance.root.bar
+
+
+@pytest.mark.unit
+def test_data_schema_manual():
+    json_schema = {
+        "title": "NestedData",
+        "type": "object",
+        "properties": {
+            "foo": {"title": "StringValue"},
+            "bar": {"title": "IntegerValue"},
+        },
+        "required": ["foo", "bar"],
+    }
+    schema = validate_value_schema(json_schema)
+    cls = schema.to_value_cls()
+
+    # to_value_cls returns a new class
+    assert cls != DataValue[NestedData]
+    # ... but it is logically equivalent, i.e. it has the same value_schema
+    assert cls.to_value_schema() == DataValue[NestedData].to_value_schema()
+    # and it can serialize and deserialize instances of the original class
+    original_instance = DataValue[NestedData](
+        NestedData(foo=StringValue("foobar"), bar=IntegerValue(123)),
+    )
+    reconstructed_instance = cls.model_validate(original_instance.model_dump())
+    assert reconstructed_instance.root.foo == original_instance.root.foo
+    assert reconstructed_instance.root.bar == original_instance.root.bar
+
+
+@pytest.mark.unit
+def test_file_schema_roundtrip():
+    for cls in (
+        FileValue,
+        JSONFileValue,
+        JSONLinesFileValue,
+        PDFFileValue,
+        TextFileValue,
+    ):
+        schema = cls.to_value_schema()
+        reconstructed_cls = schema.to_value_cls()
+        assert reconstructed_cls == cls
+        assert reconstructed_cls.to_value_schema() == schema
+
+        original_instance = cls.from_path("foo", foo="bar", bar="baz")
+        reconstructed_instance = reconstructed_cls.model_validate(
+            original_instance.model_dump()
+        )
+        assert reconstructed_instance == original_instance
+
+
+@pytest.mark.unit
+def test_file_schema_manual():
+    for name, cls in (
+        ("FileValue", FileValue),
+        ("JSONFileValue", JSONFileValue),
+        ("JSONLinesFileValue", JSONLinesFileValue),
+        ("PDFFileValue", PDFFileValue),
+        ("TextFileValue", TextFileValue),
+    ):
+        json_schema = {
+            "title": name,
+        }
+        schema = validate_value_schema(json_schema)
+        reconstructed_cls = schema.to_value_cls()
+        assert reconstructed_cls == cls
+
+        original_instance = cls.from_path("bar", bar="baz", baz="foo")
+        reconstructed_instance = reconstructed_cls.model_validate(
+            original_instance.model_dump()
+        )
+        assert reconstructed_instance == original_instance

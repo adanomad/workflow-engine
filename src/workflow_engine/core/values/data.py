@@ -1,4 +1,4 @@
-# workflow_engine/core/data.py
+# workflow_engine/core/values/data.py
 import asyncio
 import json
 import logging
@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, Type, TypeVar
 
 from pydantic import ConfigDict, create_model
 
-from workflow_engine.utils.immutable import ImmutableBaseModel
-
-from .value import Caster, StringMapValue, Value, ValueType, get_origin_and_args
+from ...utils.immutable import ImmutableBaseModel
+from .mapping import StringMapValue
+from .value import Caster, Value, ValueType, get_origin_and_args
 
 if TYPE_CHECKING:
-    from .context import Context
+    from ..context import Context
 
 logger = logging.getLogger(__name__)
 

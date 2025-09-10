@@ -1,9 +1,8 @@
 # workflow_engine/core/edge.py
 
-from workflow_engine.utils.immutable import ImmutableBaseModel
-
+from ..utils.immutable import ImmutableBaseModel
 from .node import Node
-from .value import Value, ValueType
+from .values import Value, ValueType
 
 
 class Edge(ImmutableBaseModel):

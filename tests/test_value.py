@@ -4,13 +4,15 @@ import pytest
 
 from workflow_engine import Context
 from workflow_engine.contexts.in_memory import InMemoryContext
-from workflow_engine.core.value import (
+from workflow_engine.core import (
     FloatValue,
     IntegerValue,
     SequenceValue,
     StringMapValue,
     StringValue,
     Value,
+)
+from workflow_engine.core.values.value import (
     get_origin_and_args,
     get_value_type_key,
 )
