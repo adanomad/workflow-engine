@@ -20,7 +20,7 @@ from pydantic import (
     model_validator,
 )
 
-from ...utils.immutable import ImmutableBaseModel, ImmutableRootModel
+from ...utils.immutable import ImmutableBaseModel
 from .data import Data, DataValue, build_data_type
 from .mapping import StringMapValue
 from .primitives import (
@@ -138,16 +138,6 @@ class BaseValueSchema(ImmutableBaseModel):
         resolved using self.defs first, then any extra_defs in order of decreasing precedence.
         """
         raise NotImplementedError("Subclasses must implement this method")
-
-
-class AnyValueSchema(BaseValueSchema):
-    pass
-
-    def build_value_cls(
-        self,
-        *extra_defs: Mapping[str, ValueSchema],
-    ) -> ValueType:
-        return Value[Any]
 
 
 class BooleanValueSchema(BaseValueSchema):
@@ -357,9 +347,8 @@ type ValueSchema = (
     | StringMapValueSchema
     | StringValueSchema
     | UnionValueSchema
-    | ReferenceValueSchema  # must be handled third-to-last
-    | AnyValueSchema  # must be handled second-to-last
-    | BaseValueSchema  # must be handled last
+    | ReferenceValueSchema  # must be handled second-to-last
+    | BaseValueSchema  # must be handled last, corresponds to the Any catch-all
 )
 
 
