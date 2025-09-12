@@ -22,6 +22,7 @@ from .values import (
     StringValue,
     Value,
     ValueSchema,
+    ValueSchemaValue,
     ValueType,
 )
 from .workflow import Workflow, WorkflowValue
@@ -55,6 +56,7 @@ __all__ = [
     "UserException",
     "Value",
     "ValueSchema",
+    "ValueSchemaValue",
     "ValueType",
     "Workflow",
     "WorkflowErrors",

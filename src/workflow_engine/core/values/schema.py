@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from functools import cached_property
-from traceback import print_exc
 from typing import Any, ClassVar, Literal
 
 from overrides import override
@@ -16,6 +15,8 @@ from pydantic import (
     ConfigDict,
     Field,
     ValidationError,
+    model_serializer,
+    SerializerFunctionWrapHandler,
     model_validator,
 )
 
@@ -52,7 +53,7 @@ class BaseValueSchema(ImmutableBaseModel):
         serialize_by_alias=True,
     )
 
-    # NOTE: recursive validation does not work unless this is a dict
+    # NOTE: recursive validation does not work unless this is a dict instead of a Mapping
     defs: dict[str, ValueSchema] = Field(
         default_factory=dict,
         serialization_alias="$defs",
@@ -76,6 +77,37 @@ class BaseValueSchema(ImmutableBaseModel):
             data = dict(data)
             data["$defs"] = data.pop("defs")
         return data
+
+    @model_serializer(mode="wrap")
+    def serialize_without_unset(self, handler: SerializerFunctionWrapHandler):
+        """
+        Custom serializer that excludes unset fields by default, so we don't
+        clutter the output with unused fields.
+        Applies to all subclasses of BaseValueSchema.
+
+        Newbies might do this by overriding .model_dump(), however this is a
+        trap because .model_dump() is not called recursively when this model is
+        nested inside another model.
+
+        Has special handling for $defs (included as long as it is not empty)
+        and $ref (always included).
+        """
+        # Get the serialized data from the handler
+        data: dict[str, Any] = handler(self)
+
+        keys_to_keep: set[str] = {"$ref"}  # always keep $ref if present
+
+        if hasattr(self, "__pydantic_fields_set__"):
+            keys_to_keep.update(self.__pydantic_fields_set__)
+
+        # special handling for $defs, because aliasing breaks
+        # __pydantic_fields_set__
+        if "$defs" in data and not (
+            isinstance(data["$defs"], Mapping) and len(data["$defs"]) == 0
+        ):
+            keys_to_keep.add("$defs")
+
+        return {k: v for k, v in data.items() if k in keys_to_keep}
 
     def to_value_cls(
         self,
@@ -202,7 +234,7 @@ class DataValueSchema(BaseValueSchema):
 
     type: Literal["object"]
 
-    # NOTE: recursive validation does not work unless this is a dict
+    # NOTE: recursive validation does not work unless this is a dict instead of a Mapping
     properties: dict[str, ValueSchema]
     additionalProperties: ValueSchema | bool = False
     required: Sequence[str] = Field(default_factory=list)
