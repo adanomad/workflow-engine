@@ -19,13 +19,7 @@ from typing import (
 )
 
 from overrides import final
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    ValidationError,
-    model_validator,
-)
+from pydantic import ConfigDict, Field, ValidationError, model_validator
 
 from ..utils.immutable import ImmutableBaseModel
 from ..utils.semver import (
@@ -34,7 +28,14 @@ from ..utils.semver import (
     parse_semantic_version,
 )
 from .error import NodeException, UserException
-from .values import Data, DataMapping, Value, ValueType, get_data_fields
+from .values import (
+    Data,
+    DataMapping,
+    Value,
+    ValueSchema,
+    ValueType,
+    get_data_fields,
+)
 from .values.data import Input_contra, Output_co
 
 if TYPE_CHECKING:
@@ -75,27 +76,49 @@ class Empty(Params):
 generic_pattern = re.compile(r"^[a-zA-Z]\w+\[.*\]$")
 
 
-class NodeTypeInfo(BaseModel):
+class NodeTypeInfo(ImmutableBaseModel):
     """
     Information about a node type, in serializable form.
     """
 
     name: str = Field(
-        description="The name of the node type, which should be a literal string for concrete subclasses."
+        description="A unique name for the node type, which should be a literal string for concrete subclasses."
     )
     display_name: str = Field(
         description="A human-readable display name for the node, which may or may not be unique."
     )
-    description: str = Field(
+    description: str | None = Field(
         description="A human-readable description of the node type."
     )
     version: str = Field(
         description="A 3-part version number for the node, following semantic versioning rules (see https://semver.org/)."
     )
+    parameter_schema: ValueSchema = Field(
+        default_factory=lambda: Empty.to_value_schema(),
+        description="The schema for the parameters of the node type.",
+    )
 
     @cached_property
     def version_tuple(self) -> tuple[int, int, int]:
         return parse_semantic_version(self.version)
+
+    @classmethod
+    def from_parameter_type(
+        cls,
+        *,
+        name: str,
+        display_name: str,
+        description: str | None = None,
+        version: str = LATEST_SEMANTIC_VERSION,
+        parameter_type: Type[Params],
+    ) -> Self:
+        return cls(
+            name=name,
+            display_name=display_name,
+            description=description,
+            version=version,
+            parameter_schema=parameter_type.to_value_schema(),
+        )
 
 
 class Node(ImmutableBaseModel, Generic[Input_contra, Output_co, Params_co]):

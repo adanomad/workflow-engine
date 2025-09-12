@@ -21,9 +21,10 @@ from .values import (
     StringMapValue,
     StringValue,
     Value,
+    ValueSchema,
     ValueType,
 )
-from .workflow import Workflow
+from .workflow import Workflow, WorkflowValue
 
 __all__ = [
     "BooleanValue",
@@ -53,7 +54,9 @@ __all__ = [
     "StringValue",
     "UserException",
     "Value",
+    "ValueSchema",
     "ValueType",
     "Workflow",
     "WorkflowErrors",
+    "WorkflowValue",
 ]

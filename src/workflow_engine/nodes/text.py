@@ -28,11 +28,12 @@ class AppendToFileParams(Params):
 
 
 class AppendToFileNode(Node[AppendToFileInput, AppendToFileOutput, AppendToFileParams]):
-    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo.from_parameter_type(
         name="AppendToFile",
         display_name="AppendToFile",
         description="Appends a string to the end of a file.",
         version="0.4.0",
+        parameter_type=AppendToFileParams,
     )
 
     type: Literal["AppendToFile"] = "AppendToFile"  # pyright: ignore[reportIncompatibleVariableOverride]

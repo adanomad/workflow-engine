@@ -30,6 +30,7 @@ from .core import (
     ValueType,
     Workflow,
     WorkflowErrors,
+    WorkflowValue,
 )
 
 __all__ = [
@@ -62,4 +63,5 @@ __all__ = [
     "ValueType",
     "Workflow",
     "WorkflowErrors",
+    "WorkflowValue",
 ]

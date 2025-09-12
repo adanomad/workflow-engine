@@ -14,7 +14,7 @@ import pytest
 from workflow_engine import (
     BooleanValue,
     Data,
-    DataValue,
+    Empty,
     FileValue,
     FloatValue,
     IntegerValue,
@@ -22,14 +22,15 @@ from workflow_engine import (
     SequenceValue,
     StringMapValue,
     StringValue,
+    WorkflowValue,
 )
+from workflow_engine.core.values import validate_value_schema
 from workflow_engine.files import (
-    TextFileValue,
     JSONFileValue,
     JSONLinesFileValue,
     PDFFileValue,
+    TextFileValue,
 )
-from workflow_engine.core.values import validate_value_schema
 
 
 @pytest.mark.unit
@@ -290,16 +291,16 @@ def test_sequence_schema_manual():
 
 @pytest.mark.unit
 def test_sequence_schema_aliasing():
-    for name, T in (
-        ("BooleanValue", BooleanValue),
-        ("FloatValue", FloatValue),
-        ("IntegerValue", IntegerValue),
-        ("NullValue", NullValue),
-        ("StringValue", StringValue),
+    for T in (
+        BooleanValue,
+        FloatValue,
+        IntegerValue,
+        NullValue,
+        StringValue,
     ):
         json_schema = {
             "type": "array",
-            "items": {"title": name},
+            "items": {"title": T.__name__},
         }
         schema = validate_value_schema(json_schema)
         assert schema.to_value_cls() == SequenceValue[T]
@@ -338,16 +339,16 @@ def test_string_map_schema_manual():
 
 @pytest.mark.unit
 def test_string_map_schema_aliasing():
-    for name, T in (
-        ("BooleanValue", BooleanValue),
-        ("FloatValue", FloatValue),
-        ("IntegerValue", IntegerValue),
-        ("NullValue", NullValue),
-        ("StringValue", StringValue),
+    for T in (
+        BooleanValue,
+        FloatValue,
+        IntegerValue,
+        NullValue,
+        StringValue,
     ):
         json_schema = {
             "type": "object",
-            "additionalProperties": {"title": name},
+            "additionalProperties": {"title": T.__name__},
         }
         schema = validate_value_schema(json_schema)
         assert schema.to_value_cls() == StringMapValue[T]
@@ -384,6 +385,23 @@ def test_super_recursive_schema_manual():
     )
 
 
+@pytest.mark.unit
+def test_empty_schema_roundtrip():
+    cls = Empty
+    schema = cls.to_value_schema()
+    data_value_cls = schema.to_value_cls()
+
+    # for Empty, to_value_cls returns a new class not equal to the original
+    # but it can serialize and deserialize instances of the original class
+    original_instance = cls()
+    reconstructed_instance = data_value_cls.model_validate(
+        original_instance.model_dump()
+    ).root
+    # equality check fails because they are technically different classes,
+    # but they have the exact same fields
+    assert reconstructed_instance.__dict__ == original_instance.__dict__
+
+
 # defined outside of test_data_schema_roundtrip to get a proper class name
 class NestedData(Data):
     foo: StringValue
@@ -392,27 +410,23 @@ class NestedData(Data):
 
 @pytest.mark.unit
 def test_data_schema_roundtrip():
-    cls = DataValue[NestedData]
+    cls = NestedData
     schema = cls.to_value_schema()
-    reconstructed_cls = schema.to_value_cls()
+    data_value_cls = schema.to_value_cls()
 
-    # for Data, to_value_cls returns a new class not equal to the original...
-    assert reconstructed_cls != cls
-    # ... but it is logically equivalent, i.e. it has the same value_schema
-    assert reconstructed_cls.to_value_schema() == schema
-    # and it can serialize and deserialize instances of the original class
-
+    # it can serialize and deserialize instances of the original class
     original_instance = cls(
-        NestedData(
-            foo=StringValue("foo"),
-            bar=IntegerValue(1),
-        ),
+        foo=StringValue("foo"),
+        bar=IntegerValue(1),
     )
-    reconstructed_instance = reconstructed_cls.model_validate(
+    reconstructed_instance = data_value_cls.model_validate(
         original_instance.model_dump()
-    )
-    assert reconstructed_instance.root.foo == original_instance.root.foo
-    assert reconstructed_instance.root.bar == original_instance.root.bar
+    ).root
+    # equality check fails because they are technically different classes,
+    # but they have the exact same fields
+    assert reconstructed_instance.foo == original_instance.foo
+    assert reconstructed_instance.bar == original_instance.bar
+    assert reconstructed_instance.__dict__ == original_instance.__dict__
 
 
 @pytest.mark.unit
@@ -427,19 +441,21 @@ def test_data_schema_manual():
         "required": ["foo", "bar"],
     }
     schema = validate_value_schema(json_schema)
-    cls = schema.to_value_cls()
+    data_value_cls = schema.to_value_cls()
 
-    # to_value_cls returns a new class
-    assert cls != DataValue[NestedData]
-    # ... but it is logically equivalent, i.e. it has the same value_schema
-    assert cls.to_value_schema() == DataValue[NestedData].to_value_schema()
-    # and it can serialize and deserialize instances of the original class
-    original_instance = DataValue[NestedData](
-        NestedData(foo=StringValue("bar"), bar=IntegerValue(12)),
+    # it can serialize and deserialize instances of the original class
+    original_instance = NestedData(
+        foo=StringValue("bar"),
+        bar=IntegerValue(12),
     )
-    reconstructed_instance = cls.model_validate(original_instance.model_dump())
-    assert reconstructed_instance.root.foo == original_instance.root.foo
-    assert reconstructed_instance.root.bar == original_instance.root.bar
+    reconstructed_instance = data_value_cls.model_validate(
+        original_instance.model_dump()
+    ).root
+    # equality check fails because they are technically different classes,
+    # but they have the exact same fields
+    assert reconstructed_instance.foo == original_instance.foo
+    assert reconstructed_instance.bar == original_instance.bar
+    assert reconstructed_instance.__dict__ == original_instance.__dict__
 
 
 @pytest.mark.unit
@@ -454,19 +470,21 @@ def test_data_schema_aliasing():
         "required": ["foo", "bar"],
     }
     schema = validate_value_schema(json_schema)
-    cls = schema.to_value_cls()
+    data_value_cls = schema.to_value_cls()
 
-    # to_value_cls returns a new class
-    assert cls != DataValue[NestedData]
-    # ... but it is logically equivalent, i.e. it has the same value_schema
-    assert cls.to_value_schema() == DataValue[NestedData].to_value_schema()
-    # and it can serialize and deserialize instances of the original class
-    original_instance = DataValue[NestedData](
-        NestedData(foo=StringValue("foobar"), bar=IntegerValue(123)),
+    # it can serialize and deserialize instances of the original class
+    original_instance = NestedData(
+        foo=StringValue("foobar"),
+        bar=IntegerValue(123),
     )
-    reconstructed_instance = cls.model_validate(original_instance.model_dump())
-    assert reconstructed_instance.root.foo == original_instance.root.foo
-    assert reconstructed_instance.root.bar == original_instance.root.bar
+    reconstructed_instance = data_value_cls.model_validate(
+        original_instance.model_dump()
+    ).root
+    # equality check fails because they are technically different classes,
+    # but they have the exact same fields
+    assert reconstructed_instance.foo == original_instance.foo
+    assert reconstructed_instance.bar == original_instance.bar
+    assert reconstructed_instance.__dict__ == original_instance.__dict__
 
 
 @pytest.mark.unit
@@ -491,17 +509,15 @@ def test_file_schema_roundtrip():
 
 
 @pytest.mark.unit
-def test_file_schema_manual():
-    for name, cls in (
-        ("FileValue", FileValue),
-        ("JSONFileValue", JSONFileValue),
-        ("JSONLinesFileValue", JSONLinesFileValue),
-        ("PDFFileValue", PDFFileValue),
-        ("TextFileValue", TextFileValue),
+def test_file_schema_aliasing():
+    for cls in (
+        FileValue,
+        JSONFileValue,
+        JSONLinesFileValue,
+        PDFFileValue,
+        TextFileValue,
     ):
-        json_schema = {
-            "title": name,
-        }
+        json_schema = {"title": cls.__name__}
         schema = validate_value_schema(json_schema)
         reconstructed_cls = schema.to_value_cls()
         assert reconstructed_cls == cls
@@ -511,3 +527,35 @@ def test_file_schema_manual():
             original_instance.model_dump()
         )
         assert reconstructed_instance == original_instance
+
+
+@pytest.mark.unit
+def test_workflow_schema_roundtrip():
+    cls = WorkflowValue
+    schema = cls.to_value_schema()
+    reconstructed_cls = schema.to_value_cls()
+    assert reconstructed_cls == cls
+    assert reconstructed_cls.to_value_schema() == schema
+
+    with open("examples/addition.json", "r") as f:
+        workflow_json = f.read().strip()
+
+    workflow = cls.model_validate_json(workflow_json)
+    reconstructed_workflow = reconstructed_cls.model_validate_json(workflow_json)
+    assert reconstructed_workflow == workflow
+
+
+@pytest.mark.unit
+def test_workflow_schema_aliasing():
+    cls = WorkflowValue
+    json_schema = {"title": cls.__name__}
+    schema = validate_value_schema(json_schema)
+    reconstructed_cls = schema.to_value_cls()
+    assert reconstructed_cls == WorkflowValue
+
+    with open("examples/addition.json", "r") as f:
+        workflow_json = f.read().strip()
+
+    workflow = WorkflowValue.model_validate_json(workflow_json)
+    reconstructed_workflow = schema.to_value_cls().model_validate_json(workflow_json)
+    assert reconstructed_workflow == workflow

@@ -5,15 +5,16 @@ from itertools import chain
 from typing import Type
 
 import networkx as nx
-from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
+from pydantic import ConfigDict, ValidationError, model_validator
 
+from ..utils.immutable import ImmutableBaseModel
 from .edge import Edge, InputEdge, OutputEdge
 from .error import NodeExpansionException, UserException
 from .node import Node
-from .values import Data, DataMapping, ValueType, build_data_type
+from .values import Data, DataMapping, Value, ValueType, build_data_type
 
 
-class Workflow(BaseModel):
+class Workflow(ImmutableBaseModel):
     model_config = ConfigDict(frozen=True)
 
     nodes: Sequence[Node]
@@ -414,6 +415,11 @@ class Workflow(BaseModel):
         )
 
 
+class WorkflowValue(Value[Workflow]):
+    pass
+
+
 __all__ = [
     "Workflow",
+    "WorkflowValue",
 ]

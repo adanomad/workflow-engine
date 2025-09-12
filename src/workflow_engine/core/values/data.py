@@ -13,6 +13,7 @@ from .value import Caster, Value, ValueType, get_origin_and_args
 
 if TYPE_CHECKING:
     from ..context import Context
+    from .schema import ValueSchema
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,12 @@ class Data(ImmutableBaseModel):
             assert isinstance(value, Value)
             data[key] = value
         return data
+
+    @classmethod
+    def to_value_schema(cls) -> "ValueSchema":
+        from .schema import validate_value_schema  # avoid circular import
+
+        return validate_value_schema(cls.model_json_schema())
 
 
 type DataMapping = Mapping[str, Value]

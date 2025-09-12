@@ -13,7 +13,6 @@ from ..core import (
     IntegerValue,
     Node,
     NodeTypeInfo,
-    Params,
     SequenceValue,
 )
 
@@ -58,11 +57,12 @@ class SumNodeOutput(Data):
 
 
 class SumNode(Node[SumNodeInput, SumNodeOutput, Empty]):
-    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo.from_parameter_type(
         name="Sum",
         display_name="Sum",
         description="Sums a sequence of numbers.",
         version="0.4.0",
+        parameter_type=Empty,
     )
 
     type: Literal["Sum"] = "Sum"  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -87,12 +87,13 @@ class FactorizationData(Data):
     factors: SequenceValue[IntegerValue]
 
 
-class FactorizationNode(Node[IntegerData, FactorizationData, Params]):
-    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+class FactorizationNode(Node[IntegerData, FactorizationData, Empty]):
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo.from_parameter_type(
         name="Factorization",
         display_name="Factorization",
         description="Factorizes an integer into a sequence of its factors.",
         version="0.4.0",
+        parameter_type=Empty,
     )
 
     type: Literal["Factorization"] = "Factorization"  # pyright: ignore[reportIncompatibleVariableOverride]
