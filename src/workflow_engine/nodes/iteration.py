@@ -17,6 +17,7 @@ from ..core import (
     OutputEdge,
     Params,
     Workflow,
+    WorkflowValue,
 )
 from .data import (
     ExpandDataNode,
@@ -28,7 +29,7 @@ from .data import (
 
 
 class ForEachParams(Params):
-    workflow: Workflow
+    workflow: WorkflowValue
 
 
 class ForEachNode(Node[SequenceData, SequenceData, ForEachParams]):
@@ -46,29 +47,33 @@ class ForEachNode(Node[SequenceData, SequenceData, ForEachParams]):
     sequence, with each item being the output of the internal workflow.
     """
 
-    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo.from_parameter_type(
         name="ForEach",
         display_name="ForEach",
         description="Executes the internal workflow for each item in the input sequence.",
         version="0.4.0",
+        parameter_type=ForEachParams,
     )
 
     type: Literal["ForEach"] = "ForEach"  # pyright: ignore[reportIncompatibleVariableOverride]
 
     @property
+    def workflow(self) -> Workflow:
+        return self.params.workflow.root
+
+    @property
     @override
     def input_type(self) -> Type[SequenceData]:
-        return SequenceData[DataValue[self.params.workflow.input_type]]
+        return SequenceData[DataValue[self.workflow.input_type]]
 
     @property
     @override
     def output_type(self) -> Type[SequenceData]:
-        return SequenceData[DataValue[self.params.workflow.output_type]]
+        return SequenceData[DataValue[self.workflow.output_type]]
 
     @override
     async def run(self, context: Context, input: SequenceData) -> Workflow:
         N = len(input.sequence)
-        workflow = self.params.workflow
 
         nodes: list[Node] = []
         edges: list[Edge] = []
@@ -76,12 +81,12 @@ class ForEachNode(Node[SequenceData, SequenceData, ForEachParams]):
         expand = ExpandSequenceNode.from_length(
             id="expand",
             length=N,
-            element_type=DataValue[workflow.input_type],
+            element_type=DataValue[self.workflow.input_type],
         )
         gather = GatherSequenceNode.from_length(
             id="gather",
             length=N,
-            element_type=DataValue[workflow.output_type],
+            element_type=DataValue[self.workflow.output_type],
         )
         nodes.append(expand)
         nodes.append(gather)
@@ -90,12 +95,12 @@ class ForEachNode(Node[SequenceData, SequenceData, ForEachParams]):
             namespace = f"element_{i}"
             input_adapter = ExpandDataNode.from_data_type(
                 id="input_adapter",
-                data_type=workflow.input_type,
+                data_type=self.workflow.input_type,
             ).with_namespace(namespace)
-            item_workflow = workflow.with_namespace(namespace)
+            item_workflow = self.workflow.with_namespace(namespace)
             output_adapter = GatherDataNode.from_data_type(
                 id="output_adapter",
-                data_type=workflow.output_type,
+                data_type=self.workflow.output_type,
             ).with_namespace(namespace)
 
             nodes.append(input_adapter)
@@ -163,7 +168,7 @@ class ForEachNode(Node[SequenceData, SequenceData, ForEachParams]):
         id: str,
         workflow: Workflow,
     ) -> Self:
-        return cls(id=id, params=ForEachParams(workflow=workflow))
+        return cls(id=id, params=ForEachParams(workflow=WorkflowValue(workflow)))
 
 
 __all__ = [

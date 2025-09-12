@@ -12,7 +12,7 @@ from .file import File, FileValue
 from .json import JSON, JSONValue
 from .mapping import StringMapValue
 from .primitives import BooleanValue, FloatValue, IntegerValue, NullValue, StringValue
-from .schema import validate_value_schema
+from .schema import ValueSchema, ValueSchemaValue, validate_value_schema
 from .sequence import SequenceValue
 from .value import Caster, Value, ValueType, get_origin_and_args
 
@@ -39,5 +39,7 @@ __all__ = [
     "StringValue",
     "validate_value_schema",
     "Value",
+    "ValueSchema",
+    "ValueSchemaValue",
     "ValueType",
 ]

@@ -27,9 +27,11 @@ from .core import (
     StringValue,
     UserException,
     Value,
+    ValueSchemaValue,
     ValueType,
     Workflow,
     WorkflowErrors,
+    WorkflowValue,
 )
 
 __all__ = [
@@ -59,7 +61,9 @@ __all__ = [
     "StringValue",
     "UserException",
     "Value",
+    "ValueSchemaValue",
     "ValueType",
     "Workflow",
     "WorkflowErrors",
+    "WorkflowValue",
 ]

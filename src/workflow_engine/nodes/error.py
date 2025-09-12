@@ -27,11 +27,12 @@ class ErrorNode(Node[ErrorInput, Empty, ErrorParams]):
     A node that always raises an error.
     """
 
-    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo.from_parameter_type(
         name="Error",
         display_name="Error",
         description="A node that always raises an error.",
         version="0.4.0",
+        parameter_type=ErrorParams,
     )
 
     type: Literal["Error"] = "Error"  # pyright: ignore[reportIncompatibleVariableOverride]

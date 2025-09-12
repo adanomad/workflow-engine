@@ -8,7 +8,7 @@ from typing import ClassVar, Literal, Self, Type
 from overrides import override
 from pydantic import ConfigDict
 
-from workflow_engine.core.values import build_data_type, get_data_fields
+from ..core.values import build_data_type, get_data_fields
 
 from ..core import (
     BooleanValue,
@@ -19,17 +19,18 @@ from ..core import (
     NodeTypeInfo,
     Params,
     Workflow,
+    WorkflowValue,
 )
 from ..utils.mappings import mapping_intersection
 
 
 class IfParams(Params):
-    if_true: Workflow
+    if_true: WorkflowValue
 
 
 class IfElseParams(Params):
-    if_true: Workflow
-    if_false: Workflow
+    if_true: WorkflowValue
+    if_false: WorkflowValue
 
 
 class ConditionalInput(Data):
@@ -49,11 +50,12 @@ class IfNode(Node[ConditionalInput, Empty, IfParams]):
 
     # TODO: allow conditional nodes with optional output
 
-    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo.from_parameter_type(
         name="If",
         display_name="If",
         description="Executes the internal workflow if the boolean condition is true.",
         version="0.4.0",
+        parameter_type=IfParams,
     )
 
     type: Literal["If"] = "If"  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -62,7 +64,7 @@ class IfNode(Node[ConditionalInput, Empty, IfParams]):
     @override
     def input_type(self) -> Type[ConditionalInput]:
         fields = dict(get_data_fields(ConditionalInput))
-        for key, field in self.params.if_true.input_fields.items():
+        for key, field in self.params.if_true.root.input_fields.items():
             assert key not in fields
             fields[key] = field
         return build_data_type("IfInput", fields, base_cls=ConditionalInput)
@@ -75,7 +77,7 @@ class IfNode(Node[ConditionalInput, Empty, IfParams]):
     @override
     async def run(self, context: Context, input: ConditionalInput) -> Empty | Workflow:
         if input.condition:
-            return self.params.if_true
+            return self.params.if_true.root
         return Empty()
 
     @classmethod
@@ -84,7 +86,7 @@ class IfNode(Node[ConditionalInput, Empty, IfParams]):
         id: str,
         if_true: Workflow,
     ) -> Self:
-        return cls(id=id, params=IfParams(if_true=if_true))
+        return cls(id=id, params=IfParams(if_true=WorkflowValue(if_true)))
 
 
 class IfElseNode(Node[ConditionalInput, Data, IfElseParams]):
@@ -98,11 +100,12 @@ class IfElseNode(Node[ConditionalInput, Data, IfElseParams]):
 
     # TODO: allow union types
 
-    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo.from_parameter_type(
         name="IfElse",
         display_name="IfElse",
         description="Executes one of the two internal workflows based on the boolean condition.",
         version="0.4.0",
+        parameter_type=IfElseParams,
     )
     type: Literal["IfElse"] = "IfElse"  # pyright: ignore[reportIncompatibleVariableOverride]
 
@@ -110,7 +113,7 @@ class IfElseNode(Node[ConditionalInput, Data, IfElseParams]):
     @override
     def input_type(self) -> Type[ConditionalInput]:
         fields = dict(get_data_fields(ConditionalInput))
-        for key, field in self.params.if_true.input_fields.items():
+        for key, field in self.params.if_true.root.input_fields.items():
             assert key not in fields
             fields[key] = field
         return build_data_type("IfElseInput", fields, base_cls=ConditionalInput)
@@ -119,14 +122,16 @@ class IfElseNode(Node[ConditionalInput, Data, IfElseParams]):
     @override
     def output_type(self) -> Type[Data]:
         fields = mapping_intersection(
-            self.params.if_true.output_fields,
-            self.params.if_false.output_fields,
+            self.params.if_true.root.output_fields,
+            self.params.if_false.root.output_fields,
         )
         return build_data_type("IfElseOutput", fields)
 
     @override
     async def run(self, context: Context, input: ConditionalInput) -> Workflow:
-        return self.params.if_true if input.condition else self.params.if_false
+        return (
+            self.params.if_true.root if input.condition else self.params.if_false.root
+        )
 
     @classmethod
     def from_workflows(
@@ -138,8 +143,8 @@ class IfElseNode(Node[ConditionalInput, Data, IfElseParams]):
         return cls(
             id=id,
             params=IfElseParams(
-                if_true=if_true,
-                if_false=if_false,
+                if_true=WorkflowValue(if_true),
+                if_false=WorkflowValue(if_false),
             ),
         )
 

@@ -11,9 +11,16 @@ from functools import cached_property
 from typing import Any, ClassVar, Literal
 
 from overrides import override
-from pydantic import ConfigDict, Field, ValidationError, field_validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    ValidationError,
+    model_serializer,
+    SerializerFunctionWrapHandler,
+    model_validator,
+)
 
-from ...utils.immutable import ImmutableBaseModel, ImmutableRootModel
+from ...utils.immutable import ImmutableBaseModel
 from .data import Data, DataValue, build_data_type
 from .mapping import StringMapValue
 from .primitives import (
@@ -41,21 +48,67 @@ def merge_defs(
 class BaseValueSchema(ImmutableBaseModel):
     # We will only handle fields that Pydantic actually uses.
     # extra="forbid" offensively validates that we haven't missed any fields.
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid")
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        extra="forbid",
+        serialize_by_alias=True,
+    )
 
-    defs: Mapping[str, ValueSchema] = Field(default_factory=dict, alias="$defs")
+    # NOTE: recursive validation does not work unless this is a dict instead of a Mapping
+    defs: dict[str, ValueSchema] = Field(
+        default_factory=dict,
+        serialization_alias="$defs",
+        validation_alias="$defs",
+    )
     title: str | None = None
     description: str | None = None
     default: Any | None = None
+    const: Any | None = None
 
-    # HACK: fixes a bug where the ValueSchemas in defs are not recursively validated
-    @field_validator("defs", mode="after")
+    @model_validator(mode="before")
     @classmethod
-    def fix_defs(
-        cls,
-        defs: Mapping[str, ValueSchema],
-    ) -> Mapping[str, ValueSchema]:
-        return {k: validate_value_schema(schema) for k, schema in defs.items()}
+    def rename_defs_alias(cls, data: Any) -> Any:
+        """
+        A Pydantic bug causes model_validate() to break when called on an
+        instance of BaseValueSchema.
+        This is because the validator receives the .defs property from the
+        object, whereas it is expecting $defs.
+        To fix this, we move the property to the expected key.
+        """
+        if isinstance(data, Mapping) and ("$defs" not in data) and ("defs" in data):
+            data = dict(data)
+            data["$defs"] = data.pop("defs")
+        return data
+
+    @model_serializer(mode="wrap")
+    def serialize_without_unset(self, handler: SerializerFunctionWrapHandler):
+        """
+        Custom serializer that excludes unset fields by default, so we don't
+        clutter the output with unused fields.
+        Applies to all subclasses of BaseValueSchema.
+
+        Newbies might do this by overriding .model_dump(), however this is a
+        trap because .model_dump() is not called recursively when this model is
+        nested inside another model.
+
+        Has special handling for $defs (included as long as it is not empty)
+        and $ref (always included).
+        """
+        # Get the serialized data from the handler
+        data: dict[str, Any] = handler(self)
+
+        keys_to_keep: set[str] = {"$ref"}  # always keep $ref if present
+
+        if hasattr(self, "__pydantic_fields_set__"):
+            keys_to_keep.update(self.__pydantic_fields_set__)
+
+        # special handling for $defs, because aliasing breaks
+        # __pydantic_fields_set__
+        if "$defs" in data and not (
+            isinstance(data["$defs"], Mapping) and len(data["$defs"]) == 0
+        ):
+            keys_to_keep.add("$defs")
+
+        return {k: v for k, v in data.items() if k in keys_to_keep}
 
     def to_value_cls(
         self,
@@ -136,6 +189,7 @@ class FloatValueSchema(BaseValueSchema):
 class StringValueSchema(BaseValueSchema):
     # unused JSON Schema fields include length and pattern
     type: Literal["string"]
+    pattern: str | None = None
 
     @override
     def build_value_cls(
@@ -175,24 +229,30 @@ class StringMapValueSchema(BaseValueSchema):
 
 
 class DataValueSchema(BaseValueSchema):
+    """
+    Matches a DataValue[T] schema, for some class T that inherits from Data.
+    """
+
     type: Literal["object"]
-    properties: Mapping[str, ValueSchema]
+
+    # NOTE: recursive validation does not work unless this is a dict instead of a Mapping
+    properties: dict[str, ValueSchema]
     additionalProperties: ValueSchema | bool = False
     required: Sequence[str] = Field(default_factory=list)
-
-    # HACK: fixes a bug where the ValueSchemaReferences in properties are not recursively validated
-    @field_validator("properties", mode="after")
-    @classmethod
-    def fix_defs(
-        cls,
-        properties: Mapping[str, ValueSchema],
-    ) -> Mapping[str, ValueSchema]:
-        return {k: validate_value_schema(schema) for k, schema in properties.items()}
 
     def build_data_cls(
         self,
         *extra_defs: Mapping[str, ValueSchema],
     ) -> type[Data]:
+        """
+        Rebuilds the Data type T from the schema.
+        This rebuilt Data type will not be the same as the original Data type T
+        (i.e. equality checks will fail), but it will have the same fields.
+        It will not necessarily have the same to_value_schema() as T, because
+        the rebuilding process does not yet capture all of the descriptions from
+        the original schema.
+        """
+        # TODO: capture the descriptions from the schema
         required_set = frozenset(self.required)
         properties = {
             k: (
@@ -213,13 +273,51 @@ class DataValueSchema(BaseValueSchema):
         return DataValue[D]
 
 
+class UnionValueSchema(BaseValueSchema):
+    anyOf: Sequence[ValueSchema]
+
+    @override
+    def build_value_cls(
+        self,
+        *extra_defs: Mapping[str, ValueSchema],
+    ) -> ValueType:
+        # TODO: add proper type union support
+        raise NotImplementedError(
+            "There is no Value type handling for type unions yet."
+        )
+
+
 class ReferenceValueSchema(BaseValueSchema):
     """
     A schema of the form
     { "$defs": { "foo": ... }, "$ref": "#/$defs/foo" }
     """
 
-    ref: str = Field(alias="$ref", pattern=r"^#/\$defs/\w+$")
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        serialize_by_alias=True,  # already set in BaseValueSchema, but setting again here to be explicit
+    )
+
+    ref: str = Field(
+        pattern=r"^#/\$defs/\w+$",
+        serialization_alias="$ref",
+        validation_alias="$ref",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def rename_ref_alias(cls, data: Any) -> Any:
+        """
+        A Pydantic bug causes model_validate() to break when called on an
+        instance of ReferenceValueSchema.
+        This is because the validator receives the .ref property from the
+        object, whereas it is expecting $ref.
+        To fix this, we move the property to the expected key.
+        """
+        if isinstance(data, Mapping) and ("$ref" not in data) and ("ref" in data):
+            data = dict(data)
+            data["$ref"] = data.pop("ref")
+            return data
+        return data
 
     @cached_property
     def id(self) -> str:
@@ -239,11 +337,6 @@ class ReferenceValueSchema(BaseValueSchema):
         raise KeyError(f"Schema definition for {self.id} not found")
 
 
-# TODO: add proper union support in the future. Disabled until then.
-# class UnionValueSchema(BaseValueSchema):
-#     anyOf: Sequence[ValueSchema]
-
-
 type ValueSchema = (
     BooleanValueSchema
     | DataValueSchema
@@ -253,22 +346,28 @@ type ValueSchema = (
     | SequenceValueSchema
     | StringMapValueSchema
     | StringValueSchema
-    # | UnionValueSchema
+    | UnionValueSchema
     | ReferenceValueSchema  # must be handled second-to-last
-    | BaseValueSchema  # must be handled last
+    | BaseValueSchema  # must be handled last, corresponds to the Any catch-all
 )
 
 
-ValueSchemaRootModel = ImmutableRootModel[ValueSchema]
+# yep, this is possible
+class ValueSchemaValue(Value[ValueSchema]):
+    pass
 
 
 def validate_value_schema(schema: Any) -> ValueSchema:
+    # idempotent: if the schema is already a ValueSchema, just return it
+    if isinstance(schema, BaseValueSchema):
+        return schema
     try:
-        return ValueSchemaRootModel.model_validate(schema).root
+        return ValueSchemaValue.model_validate(schema).root
     except ValidationError as e:
         raise ValueError(f"Invalid value schema: {schema}") from e
 
 
 __all__ = [
     "ValueSchema",
+    "ValueSchemaValue",
 ]

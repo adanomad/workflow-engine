@@ -53,11 +53,12 @@ class GatherSequenceNode(Node[Data, SequenceData, SequenceParams]):
         {"sequence": [0, 1, 2]}
     """
 
-    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo.from_parameter_type(
         name="GatherSequence",
         display_name="GatherSequence",
         description="Creates a new sequence object of a given length.",
         version="0.4.0",
+        parameter_type=SequenceParams,
     )
 
     type: Literal["GatherSequence"] = "GatherSequence"  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -117,11 +118,12 @@ class ExpandSequenceNode(Node[SequenceData, Data, SequenceParams]):
     Extracts a sequence of elements to a data object.
     """
 
-    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo.from_parameter_type(
         name="ExpandSequence",
         display_name="ExpandSequence",
         description="Extracts a sequence of elements to a data object.",
         version="0.4.0",
+        parameter_type=SequenceParams,
     )
 
     type: Literal["ExpandSequence"] = "ExpandSequence"  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -201,11 +203,12 @@ class GatherMappingNode(Node[Data, MappingData, MappingParams]):
         {"mapping": {"a": 1, "b": 2, "c": 3}}
     """
 
-    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo.from_parameter_type(
         name="GatherMapping",
         display_name="GatherMapping",
         description="Creates a new mapping object from the inputs to this node.",
         version="0.4.0",
+        parameter_type=MappingParams,
     )
 
     type: Literal["GatherMapping"] = "GatherMapping"  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -261,11 +264,12 @@ class ExpandMappingNode(Node[MappingData, Data, MappingParams]):
         {"a": 1, "b": 2, "c": 3}
     """
 
-    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo.from_parameter_type(
         name="ExpandMapping",
         display_name="ExpandMapping",
         description="Extracts values from a mapping object at specific keys.",
         version="0.4.0",
+        parameter_type=MappingParams,
     )
 
     type: Literal["ExpandMapping"] = "ExpandMapping"  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -330,11 +334,12 @@ class GatherDataNode(Node[Data, NestedData, Empty]):
         {"data": {"a": 1, "b": 2, "c": 3}}
     """
 
-    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo.from_parameter_type(
         name="GatherData",
         display_name="GatherData",
         description="A node that gathers a data object from the inputs to this node.",
         version="0.4.0",
+        parameter_type=Empty,
     )
 
     type: Literal["GatherData"] = "GatherData"  # pyright: ignore[reportIncompatibleVariableOverride]
@@ -378,11 +383,12 @@ class ExpandDataNode(Node[NestedData, Data, Empty]):
         {"a": 1, "b": 2, "c": 3}
     """
 
-    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo(
+    TYPE_INFO: ClassVar[NodeTypeInfo] = NodeTypeInfo.from_parameter_type(
         name="ExpandData",
         display_name="ExpandData",
         description="A node that expands a nested data object into its individual fields.",
         version="0.4.0",
+        parameter_type=Empty,
     )
 
     type: Literal["ExpandData"] = "ExpandData"  # pyright: ignore[reportIncompatibleVariableOverride]
