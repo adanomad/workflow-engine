@@ -37,7 +37,7 @@ class ConstantBooleanNode(Node[Empty, ConstantBoolean, ConstantBoolean]):
         return self.params
 
     @classmethod
-    def from_value(cls, id: str, value: bool) -> "ConstantBooleanNode":
+    def from_value(cls, *, id: str, value: bool) -> "ConstantBooleanNode":
         return cls(id=id, params=ConstantBoolean(value=BooleanValue(value)))
 
 
@@ -64,7 +64,7 @@ class ConstantIntegerNode(Node[Empty, ConstantInteger, ConstantInteger]):
         return self.params
 
     @classmethod
-    def from_value(cls, id: str, value: int) -> "ConstantIntegerNode":
+    def from_value(cls, *, id: str, value: int) -> "ConstantIntegerNode":
         return cls(id=id, params=ConstantInteger(value=IntegerValue(value)))
 
 
@@ -91,7 +91,7 @@ class ConstantStringNode(Node[Empty, ConstantString, ConstantString]):
         return self.params
 
     @classmethod
-    def from_value(cls, id: str, value: str) -> "ConstantStringNode":
+    def from_value(cls, *, id: str, value: str) -> "ConstantStringNode":
         return cls(id=id, params=ConstantString(value=StringValue(value)))
 
 

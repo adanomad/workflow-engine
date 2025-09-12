@@ -280,6 +280,14 @@ class Node(ImmutableBaseModel, Generic[Input_contra, Output_co, Params_co]):
     def output_fields(self) -> Mapping[str, tuple[ValueType, bool]]:
         return get_data_fields(self.output_type)
 
+    @property
+    def input_schema(self) -> ValueSchema:
+        return self.input_type.to_value_schema()
+
+    @property
+    def output_schema(self) -> ValueSchema:
+        return self.output_type.to_value_schema()
+
     # --------------------------------------------------------------------------
     # EXECUTION
 

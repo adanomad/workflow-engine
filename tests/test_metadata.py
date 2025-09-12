@@ -39,3 +39,50 @@ def test_constant_string_node_type_info():
         },
         "version": "0.4.0",
     }
+
+
+@pytest.mark.unit
+def test_constant_string_node_input_schema():
+    node = ConstantStringNode.from_value(id="test_node", value="test")
+    assert node.input_schema.model_dump() == {
+        "$defs": {},
+        "additionalProperties": False,
+        "default": None,
+        "description": "A Data and Params class that is explicitly not allowed to have any\nparameters.",
+        "properties": {},
+        "required": [],
+        "title": "Empty",
+        "type": "object",
+    }
+
+
+@pytest.mark.unit
+def test_constant_string_node_output_schema():
+    node = ConstantStringNode.from_value(id="test_node", value="test")
+    assert node.output_schema.model_dump() == {
+        "$defs": {
+            "StringValue": {
+                "$defs": {},
+                "default": None,
+                "description": None,
+                "pattern": None,
+                "type": "string",
+                "title": "StringValue",
+            },
+        },
+        "additionalProperties": False,
+        "default": None,
+        "description": None,
+        "properties": {
+            "value": {
+                "$defs": {},
+                "default": None,
+                "description": None,
+                "$ref": "#/$defs/StringValue",
+                "title": None,
+            },
+        },
+        "required": ["value"],
+        "title": "ConstantString",
+        "type": "object",
+    }

@@ -106,22 +106,6 @@ class BaseValueSchema(ImmutableBaseModel):
         """
         raise NotImplementedError("Subclasses must implement this method")
 
-    def model_dump(self, **kwargs: Any) -> dict[str, Any]:
-        """
-        Dumps the schema to a dictionary.
-        """
-        if "exclude_defaults" not in kwargs:
-            kwargs["exclude_defaults"] = True
-        return super().model_dump(**kwargs)
-
-    def model_dump_json(self, **kwargs: Any) -> str:
-        """
-        Dumps the schema to a JSON string.
-        """
-        if "exclude_defaults" not in kwargs:
-            kwargs["exclude_defaults"] = True
-        return super().model_dump_json(**kwargs)
-
 
 class BooleanValueSchema(BaseValueSchema):
     type: Literal["boolean"]
