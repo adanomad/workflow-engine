@@ -199,6 +199,10 @@ class Node(ImmutableBaseModel, Generic[Input_contra, Output_co, Params_co]):
             if cls is None:
                 raise ValueError(f'Node type "{self.type}" is not registered')
             return cls.model_validate(self.model_dump())
+        if self.__class__ is Node:
+            warnings.warn(
+                f"Node validation for node {self} could not find a registered subclass to dispatch to."
+            )
         return self
 
     # --------------------------------------------------------------------------
@@ -243,6 +247,10 @@ class Node(ImmutableBaseModel, Generic[Input_contra, Output_co, Params_co]):
         Sets the node version to the current version of the node type.
         Validates the node version against the TYPE_INFO version.
         """
+        # skip validation for the base Node class, which lacks a TYPE_INFO
+        if self.__class__ is Node:
+            return self
+
         type_info = self.__class__.TYPE_INFO
         if self.version == LATEST_SEMANTIC_VERSION:
             self._model_mutate(version=type_info.version)

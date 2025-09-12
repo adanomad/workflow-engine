@@ -22,6 +22,7 @@ from workflow_engine import (
     SequenceValue,
     StringMapValue,
     StringValue,
+    ValueSchemaValue,
     WorkflowValue,
 )
 from workflow_engine.core.values import validate_value_schema
@@ -30,6 +31,12 @@ from workflow_engine.files import (
     JSONLinesFileValue,
     PDFFileValue,
     TextFileValue,
+)
+
+# ensure that these node types are registered for the workflow tests
+from workflow_engine.nodes import (
+    AddNode,  # noqa: F401
+    ConstantIntegerNode,  # noqa: F401
 )
 
 
@@ -559,3 +566,21 @@ def test_workflow_schema_aliasing():
     workflow = WorkflowValue.model_validate_json(workflow_json)
     reconstructed_workflow = schema.to_value_cls().model_validate_json(workflow_json)
     assert reconstructed_workflow == workflow
+
+
+@pytest.mark.unit
+def test_value_schema_value_roundtrip():
+    cls = ValueSchemaValue
+    schema = cls.to_value_schema()
+    reconstructed_cls = schema.to_value_cls()
+    assert reconstructed_cls == cls
+    assert reconstructed_cls.to_value_schema() == schema
+
+
+@pytest.mark.unit
+def test_value_schema_value_aliasing():
+    cls = ValueSchemaValue
+    json_schema = {"title": cls.__name__}
+    schema = validate_value_schema(json_schema)
+    reconstructed_cls = schema.to_value_cls()
+    assert reconstructed_cls == cls

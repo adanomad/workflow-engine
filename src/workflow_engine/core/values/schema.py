@@ -62,6 +62,7 @@ class BaseValueSchema(ImmutableBaseModel):
     title: str | None = None
     description: str | None = None
     default: Any | None = None
+    const: Any | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -137,6 +138,16 @@ class BaseValueSchema(ImmutableBaseModel):
         resolved using self.defs first, then any extra_defs in order of decreasing precedence.
         """
         raise NotImplementedError("Subclasses must implement this method")
+
+
+class AnyValueSchema(BaseValueSchema):
+    pass
+
+    def build_value_cls(
+        self,
+        *extra_defs: Mapping[str, ValueSchema],
+    ) -> ValueType:
+        return Value[Any]
 
 
 class BooleanValueSchema(BaseValueSchema):
@@ -272,6 +283,20 @@ class DataValueSchema(BaseValueSchema):
         return DataValue[D]
 
 
+class UnionValueSchema(BaseValueSchema):
+    anyOf: Sequence[ValueSchema]
+
+    @override
+    def build_value_cls(
+        self,
+        *extra_defs: Mapping[str, ValueSchema],
+    ) -> ValueType:
+        # TODO: add proper type union support
+        raise NotImplementedError(
+            "There is no Value type handling for type unions yet."
+        )
+
+
 class ReferenceValueSchema(BaseValueSchema):
     """
     A schema of the form
@@ -322,11 +347,6 @@ class ReferenceValueSchema(BaseValueSchema):
         raise KeyError(f"Schema definition for {self.id} not found")
 
 
-# TODO: add proper union support in the future. Disabled until then.
-# class UnionValueSchema(BaseValueSchema):
-#     anyOf: Sequence[ValueSchema]
-
-
 type ValueSchema = (
     BooleanValueSchema
     | DataValueSchema
@@ -336,8 +356,9 @@ type ValueSchema = (
     | SequenceValueSchema
     | StringMapValueSchema
     | StringValueSchema
-    # | UnionValueSchema
-    | ReferenceValueSchema  # must be handled second-to-last
+    | UnionValueSchema
+    | ReferenceValueSchema  # must be handled third-to-last
+    | AnyValueSchema  # must be handled second-to-last
     | BaseValueSchema  # must be handled last
 )
 
