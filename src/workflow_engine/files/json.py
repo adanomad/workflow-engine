@@ -20,7 +20,7 @@ from ..core import (
     StringValue,
     Value,
 )
-from ..core.value import get_origin_and_args
+from ..core.values import get_origin_and_args
 from .text import TextFileValue
 
 logger = getLogger(__name__)

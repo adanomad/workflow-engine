@@ -10,7 +10,7 @@ from typing import ClassVar, Generic, Literal, Self, Type, TypeVar
 from overrides import override
 from pydantic import Field
 
-from workflow_engine.core.data import build_data_type
+from workflow_engine.core.values import build_data_type
 
 from ..core import (
     Context,

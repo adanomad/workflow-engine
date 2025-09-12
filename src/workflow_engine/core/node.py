@@ -27,22 +27,15 @@ from pydantic import (
     model_validator,
 )
 
-from workflow_engine.utils.immutable import ImmutableBaseModel
-from workflow_engine.utils.semver import (
+from ..utils.immutable import ImmutableBaseModel
+from ..utils.semver import (
     LATEST_SEMANTIC_VERSION,
-    parse_semantic_version,
     SEMANTIC_VERSION_OR_LATEST_PATTERN,
-)
-
-from .data import (
-    Data,
-    DataMapping,
-    Input_contra,
-    Output_co,
-    get_data_fields,
+    parse_semantic_version,
 )
 from .error import NodeException, UserException
-from .value import Value, ValueType
+from .values import Data, DataMapping, Value, ValueType, get_data_fields
+from .values.data import Input_contra, Output_co
 
 if TYPE_CHECKING:
     from .context import Context
@@ -379,10 +372,12 @@ class NodeRegistry:
         self.base_classes: list[Type[Node]] = []
 
     def register(self, type: str, cls: Type[Node]):
-        if type in self.types and cls is not self.types[type]:
-            raise ValueError(
-                f'Node type "{type}" is already registered to a different class'
-            )
+        if type in self.types:
+            conflict = self.types[type]
+            if cls is not conflict:
+                raise ValueError(
+                    f'Node type "{type}" (class {cls.__name__}) is already registered to a different class ({conflict.__name__})'
+                )
         self.types[type] = cls
         logger.info("Registering class %s as node type %s", cls.__name__, type)
 

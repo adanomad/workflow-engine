@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import Field
 
-from workflow_engine.utils.immutable import ImmutableBaseModel
+from ..utils.immutable import ImmutableBaseModel
 
 if TYPE_CHECKING:
     from .workflow import Workflow

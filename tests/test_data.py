@@ -5,9 +5,8 @@ from typing import Type
 import pytest
 from pydantic import ValidationError
 
-from workflow_engine import BooleanValue, Data, IntegerValue, StringValue
-from workflow_engine.core.data import build_data_type, get_data_fields
-from workflow_engine.core.value import ValueType
+from workflow_engine import BooleanValue, Data, IntegerValue, StringValue, ValueType
+from workflow_engine.core.values import build_data_type, get_data_fields
 
 
 @pytest.fixture

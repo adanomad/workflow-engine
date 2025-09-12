@@ -15,7 +15,7 @@ from ..core import (
     Workflow,
     WorkflowErrors,
 )
-from ..core.data import dump_data_mapping, serialize_data_mapping
+from ..core.values import dump_data_mapping, serialize_data_mapping
 
 F = TypeVar("F", bound=FileValue)
 

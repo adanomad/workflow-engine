@@ -8,7 +8,7 @@ from typing import ClassVar, Literal, Self, Type
 from overrides import override
 from pydantic import ConfigDict
 
-from workflow_engine.core.data import build_data_type, get_data_fields
+from workflow_engine.core.values import build_data_type, get_data_fields
 
 from ..core import (
     BooleanValue,

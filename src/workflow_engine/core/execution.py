@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 from overrides import EnforceOverrides
 
 from .context import Context
-from .data import DataMapping
 from .error import WorkflowErrors
+from .values import DataMapping
 from .workflow import Workflow
 
 

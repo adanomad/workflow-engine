@@ -10,8 +10,7 @@ from workflow_engine import (
 )
 from workflow_engine.contexts import InMemoryContext
 from workflow_engine.execution import TopologicalExecutionAlgorithm
-from workflow_engine.nodes import AddNode, ConstantIntegerNode
-from workflow_engine.nodes.conditional import IfElseNode
+from workflow_engine.nodes import AddNode, ConstantIntegerNode, IfElseNode
 
 
 @pytest.fixture
