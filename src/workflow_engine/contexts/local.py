@@ -2,6 +2,7 @@
 import json
 import os
 from typing import TypeVar
+import uuid
 
 from overrides import override
 
@@ -31,9 +32,16 @@ class LocalContext(Context):
         run_id: str | None = None,
         base_dir: str = "./local",
     ):
-        super().__init__(run_id=run_id)
-        self.run_dir = os.path.join(base_dir, self.run_id)
-        os.makedirs(self.run_dir, exist_ok=True)
+        if run_id is None:
+            run_dir: str | None = None
+            while run_dir is None or os.path.exists(run_dir):
+                run_id = str(uuid.uuid4())
+                run_dir = os.path.join(base_dir, run_id)
+        else:
+            run_dir = os.path.join(base_dir, run_id)
+        os.makedirs(run_dir, exist_ok=True)
+        self.run_id = run_id
+        self.run_dir = run_dir
 
         self.files_dir = os.path.join(self.run_dir, "files")
         self.input_dir = os.path.join(self.run_dir, "input")

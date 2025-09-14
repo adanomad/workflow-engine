@@ -1,5 +1,4 @@
 # workflow_engine/core/context.py
-import uuid
 from abc import ABC, abstractmethod
 from typing import TypeVar
 
@@ -18,15 +17,6 @@ class Context(ABC, EnforceOverrides):
     Represents the environment in which a workflow is executed.
     A context's life is limited to the execution of a single workflow.
     """
-
-    def __init__(
-        self,
-        *,
-        run_id: str | None = None,
-    ):
-        if run_id is None:
-            run_id = str(uuid.uuid4())
-        self.run_id = run_id
 
     @abstractmethod
     async def read(
