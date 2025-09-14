@@ -25,6 +25,7 @@ from ..utils.immutable import ImmutableBaseModel
 from ..utils.semver import (
     LATEST_SEMANTIC_VERSION,
     SEMANTIC_VERSION_OR_LATEST_PATTERN,
+    SEMANTIC_VERSION_PATTERN,
     parse_semantic_version,
 )
 from .error import NodeException, UserException
@@ -91,7 +92,8 @@ class NodeTypeInfo(ImmutableBaseModel):
         description="A human-readable description of the node type."
     )
     version: str = Field(
-        description="A 3-part version number for the node, following semantic versioning rules (see https://semver.org/)."
+        description="A 3-part version number for the node, following semantic versioning rules (see https://semver.org/).",
+        pattern=SEMANTIC_VERSION_PATTERN,
     )
     parameter_schema: ValueSchema = Field(
         default_factory=lambda: Empty.to_value_schema(),
@@ -109,7 +111,7 @@ class NodeTypeInfo(ImmutableBaseModel):
         name: str,
         display_name: str,
         description: str | None = None,
-        version: str = LATEST_SEMANTIC_VERSION,
+        version: str,
         parameter_type: Type[Params],
     ) -> Self:
         return cls(
