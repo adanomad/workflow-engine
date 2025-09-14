@@ -210,15 +210,19 @@ class Node(ImmutableBaseModel, Generic[Input_contra, Output_co, Params_co]):
     # --------------------------------------------------------------------------
     # NAMING
 
-    @property
-    def name(self) -> str:
+    async def display_name(self) -> str:
         """
-        A human-readable display name for the node, which may or may not be
+        A human-readable display name for the node, which is not necessarily
         unique.
-        By default, it is the node type joined with the node ID.
-        Override this method to provide a more meaningful name.
+        By default, it is the node type's display name, which is a poor default
+        at best.
+        You should override this method to provide a more meaningful name and
+        disambiguate nodes with the same type.
+
+        This method is async in case determining the node name requires some
+        asynchronous work.
         """
-        return f"{self.TYPE_INFO.name} {self.id}"
+        return self.TYPE_INFO.display_name
 
     def with_namespace(self, namespace: str) -> Self:
         """
