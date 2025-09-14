@@ -210,7 +210,7 @@ class Node(ImmutableBaseModel, Generic[Input_contra, Output_co, Params_co]):
     # --------------------------------------------------------------------------
     # NAMING
 
-    async def display_name(self) -> str:
+    async def display_name(self, context: "Context") -> str:
         """
         A human-readable display name for the node, which is not necessarily
         unique.
@@ -220,7 +220,7 @@ class Node(ImmutableBaseModel, Generic[Input_contra, Output_co, Params_co]):
         disambiguate nodes with the same type.
 
         This method is async in case determining the node name requires some
-        asynchronous work.
+        asynchronous work, and can use the context.
         """
         return self.TYPE_INFO.display_name
 
