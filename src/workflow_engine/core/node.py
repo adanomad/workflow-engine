@@ -25,6 +25,7 @@ from ..utils.immutable import ImmutableBaseModel
 from ..utils.semver import (
     LATEST_SEMANTIC_VERSION,
     SEMANTIC_VERSION_OR_LATEST_PATTERN,
+    SEMANTIC_VERSION_PATTERN,
     parse_semantic_version,
 )
 from .error import NodeException, UserException
@@ -91,7 +92,8 @@ class NodeTypeInfo(ImmutableBaseModel):
         description="A human-readable description of the node type."
     )
     version: str = Field(
-        description="A 3-part version number for the node, following semantic versioning rules (see https://semver.org/)."
+        description="A 3-part version number for the node, following semantic versioning rules (see https://semver.org/).",
+        pattern=SEMANTIC_VERSION_PATTERN,
     )
     parameter_schema: ValueSchema = Field(
         default_factory=lambda: Empty.to_value_schema(),
@@ -109,7 +111,7 @@ class NodeTypeInfo(ImmutableBaseModel):
         name: str,
         display_name: str,
         description: str | None = None,
-        version: str = LATEST_SEMANTIC_VERSION,
+        version: str,
         parameter_type: Type[Params],
     ) -> Self:
         return cls(
@@ -208,15 +210,19 @@ class Node(ImmutableBaseModel, Generic[Input_contra, Output_co, Params_co]):
     # --------------------------------------------------------------------------
     # NAMING
 
-    @property
-    def name(self) -> str:
+    async def display_name(self, context: "Context") -> str:
         """
-        A human-readable display name for the node, which may or may not be
+        A human-readable display name for the node, which is not necessarily
         unique.
-        By default, it is the node type joined with the node ID.
-        Override this method to provide a more meaningful name.
+        By default, it is the node type's display name, which is a poor default
+        at best.
+        You should override this method to provide a more meaningful name and
+        disambiguate nodes with the same type.
+
+        This method is async in case determining the node name requires some
+        asynchronous work, and can use the context.
         """
-        return f"{self.TYPE_INFO.name} {self.id}"
+        return self.TYPE_INFO.display_name
 
     def with_namespace(self, namespace: str) -> Self:
         """

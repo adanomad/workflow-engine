@@ -187,8 +187,9 @@ class FloatValueSchema(BaseValueSchema):
 
 
 class StringValueSchema(BaseValueSchema):
-    # unused JSON Schema fields include length and pattern
+    # unused JSON Schema fields include length
     type: Literal["string"]
+    enum: Sequence[str] | None = None
     pattern: str | None = None
 
     @override
